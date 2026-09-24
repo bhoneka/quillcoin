@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuillCoin</title>
+<meta name="description" content="Signed books hidden in 2b2t dungeon chests. Find one, redeem the code, own a QuillCoin.">
+<style>
+  :root { --bg:#0e0d0b; --panel:#17150f; --ink:#f1e9d2; --dim:#9a8f74; --gold:#e6c85a; --line:#2a2618; --found:#6fbf73; --grey:#3a362b; }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg:#f7f1df; --panel:#fffaf0; --ink:#1d1a12; --dim:#6b6249; --gold:#8a6d00; --line:#e2d8bc; --found:#2e8b3a; --grey:#d9d1b8; } }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  main { max-width:760px; margin:0 auto; padding:48px 16px 96px; }
+  h1 { font-size:40px; margin:0 0 4px; letter-spacing:-1px } h1 span { color:var(--gold) }
+  .tag { color:var(--dim); margin:0 0 40px }
+  h2 { font-size:15px; text-transform:uppercase; letter-spacing:2px; color:var(--dim); margin:48px 0 12px }
+  p { margin:0 0 12px }
+  .steps { counter-reset:s; padding:0; margin:0; list-style:none }
+  .steps li { counter-increment:s; padding:10px 0 10px 40px; position:relative; border-top:1px solid var(--line) }
+  .steps li::before { content:counter(s); position:absolute; left:0; top:10px; width:26px; height:26px; border:1px solid var(--gold); color:var(--gold); border-radius:50%; text-align:center; line-height:24px; font-size:13px }
+  .redeem { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px }
+  .redeem input { width:100%; font:inherit; font-size:20px; letter-spacing:2px; padding:14px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); text-transform:uppercase }
+  .row { display:flex; gap:10px; margin-top:10px; flex-wrap:wrap }
+  button { font:inherit; padding:12px 18px; border-radius:8px; border:0; cursor:pointer; background:var(--gold); color:#1a1500; font-weight:700 }
+  button.ghost { background:transparent; color:var(--ink); border:1px solid var(--line) }
+  .msg { min-height:24px; margin-top:12px; color:var(--dim) }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0 18px }
+  .stat { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center }
+  .stat b { display:block; font-size:26px; color:var(--gold) } .stat span { color:var(--dim); font-size:13px }
+  .board { display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:8px }
+  .coin { border-radius:10px; padding:10px; border:1px solid var(--line); background:var(--grey); color:var(--dim); min-height:74px; font-size:13px }
+  .coin.found { background:var(--panel); border-color:var(--found); color:var(--ink) }
+  .coin .n { font-weight:700; font-size:15px; display:block } .coin.found .n { color:var(--found) }
+  .coin small { display:block; color:var(--dim); margin-top:4px }
+  footer { margin-top:64px; color:var(--dim); font-size:13px; border-top:1px solid var(--line); padding-top:16px }
+  a { color:var(--gold) }
+</style>
+</head>
+<body>
+<main>
+  <h1><span>Quill</span>Coin</h1>
+  <p class="tag">Signed books hidden in dungeon chests across 2b2t. Find one, redeem the code, own a coin.</p>
+
+  <section class="redeem" id="redeem">
+    <h2 style="margin-top:0">Redeem a book</h2>
+    <input id="code" placeholder="QLL-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false">
+    <div class="row">
+      <button id="btn-redeem">Redeem</button>
+      <button class="ghost" id="btn-check">Just check it</button>
+    </div>
+    <div class="msg" id="msg"></div>
+  </section>
+
+  <h2>How it works</h2>
+  <ol class="steps">
+    <li>Somewhere on 2b2t, in an ordinary dungeon chest, there is a written book signed by <b>QuillCoin</b>. Its first page is a code.</li>
+    <li>Whoever finds the book takes it. It is a bearer item: whoever holds it, holds the coin.</li>
+    <li>Type the code here. First redemption wins; the book is then spent and becomes a souvenir.</li>
+    <li>You get one QuillCoin on your ledger. The board below shows every coin the moment it is found.</li>
+  </ol>
+  <p>There are no hints. Nobody knows where the books are — the tool that hides them never shows the code or the coordinates to the person hiding, and every coin's hash is published here <em>before</em> anyone hunts for it, so none can be added later. The hider's own accounts cannot redeem.</p>
+
+  <h2>Round 1</h2>
+  <div class="stats">
+    <div class="stat"><b id="s-hidden">–</b><span>hidden</span></div>
+    <div class="stat"><b id="s-found">–</b><span>found</span></div>
+    <div class="stat"><b id="s-last">–</b><span>since last find</span></div>
+  </div>
+  <div class="board" id="board"></div>
+
+  <h2>Rules</h2>
+  <p>Coins only exist when they are found. Each redemption mints 1 coin to the finder and 0.1 to a public founder wallet — that fee is the founder's only income, and it is visible from the first coin. No presale, nothing is ever sold by the founder, and no price is promised: this is a game reward. If people trade it, that is their doing.</p>
+
+  <footer>
+    Hash list: <a id="hashlink" href="api/coins.json">coins.json</a> · Hider tool source: <a href="#">github</a> · Ledger: <a href="#">public</a>
+  </footer>
+</main>
+<script>
+const API = (window.QUILL_API || '') ;                       // set to the Supabase edge function base when it exists
+const $ = s => document.querySelector(s);
+function since(ts){ if(!ts) return '–'; const d=(Date.now()/1000-ts); if(d<3600) return Math.floor(d/60)+'m'; if(d<86400) return Math.floor(d/3600)+'h'; return Math.floor(d/86400)+'d'; }
+async function loadBoard(){
+  try {
+    const r = await fetch((API? API+'/board?round=1' : 'api/coins.json'), {cache:'no-store'});
+    const coins = await r.json();
+    const found = coins.filter(c=>c.found_by);
+    $('#s-hidden').textContent = coins.length; $('#s-found').textContent = found.length;
+    $('#s-last').textContent = since(Math.max(0, ...found.map(c=>c.found_at||0)));
+    const b=$('#board'); b.innerHTML='';
+    coins.sort((a,b)=>a.number-b.number).forEach(c=>{
+      const d=document.createElement('div'); d.className='coin'+(c.found_by?' found':'');
+      d.innerHTML = `<span class="n">Coin ${c.number}</span>` + (c.found_by ? `${c.found_by}<small>${new Date(c.found_at*1000).toLocaleDateString()}</small>` : `<small>still out there</small>`);
+      b.appendChild(d);
+    });
+  } catch(e) { $('#board').textContent = 'Board unavailable.'; }
+}
+function norm(v){ return v.toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^QLL/,'').replace(/(.{5})/g,'$1-').replace(/-$/,''); }
+async function send(path){
+  const code = 'QLL-'+norm($('#code').value);
+  if (code.length < 27) { $('#msg').textContent='That is not a full code.'; return; }
+  if (!API) { $('#msg').textContent='Redemption opens when round 1 starts.'; return; }
+  $('#msg').textContent='…';
+  try { const r = await fetch(API+path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code})}); const j = await r.json(); $('#msg').textContent = j.message || JSON.stringify(j); if (j.ok) loadBoard(); }
+  catch(e){ $('#msg').textContent='Could not reach the server.'; }
+}
+$('#btn-redeem').onclick = ()=>send('/redeem');
+$('#btn-check').onclick  = ()=>send('/check');
+loadBoard();
+</script>
+</body>
+</html>
