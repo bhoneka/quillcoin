@@ -372,8 +372,11 @@ function showHead(){
   if (!headTimer) { im.src = headUrl(HEADS[headIdx]); headTimer = setInterval(nextHead, 1300); }
 }
 $('#ign').addEventListener('input', showHead); showHead();
-const openIgn = () => { $('#btn-ign').hidden = true; $('#ign-row').hidden = false; };
+const openIgn = () => { $('#btn-ign').hidden = true; $('#ign-row').hidden = false; showHead(); };
+const closeIgn = () => { $('#ign-row').hidden = true; $('#btn-ign').hidden = false; clearInterval(headTimer); headTimer = null; };
 $('#btn-ign').onclick = () => { openIgn(); $('#ign').focus(); };
+// click anywhere else with nothing typed and the field folds back into the button
+document.addEventListener('pointerdown', e => { const row = $('#ign-row'); if (!row.hidden && !row.contains(e.target) && !$('#ign').value.trim()) closeIgn(); });
 if ($('#ign').value.trim()) openIgn();                                     // a remembered name shows straight away
 // the code is checked as it is typed; nothing is spent until REDEEM
 let checkTimer = null, lastChecked = '';
