@@ -75,7 +75,7 @@ async function board(round: number) {
   const { data: r } = await admin.from("rounds").select("id, opened_at, closed_at, note").eq("id", round).maybeSingle();
   if (!r) return json(404, { ok: false, message: "no such round" });
   const { data: coins, error } = await admin.from("coins")
-    .select("number, hash, hidden_at, blind, server, found_at, found_ign").eq("round", round).order("number");
+    .select("number, hash, hidden_at, blind, server, found_at, found_ign, found_name").eq("round", round).order("number");
   if (error) throw error;
   const list = coins ?? [];
   return json(200, { ok: true, round: r, coins: list, hidden: list.length, found: list.filter((c) => c.found_at).length });
@@ -85,8 +85,8 @@ async function ledger() {
   const { data, error } = await admin.from("ledger")
     .select("at, delta, reason, coin_round, coin_number").order("at", { ascending: false }).limit(500);
   if (error) throw error;
-  const { data: names } = await admin.from("coins").select("round, number, found_ign").not("found_at", "is", null);
-  const nameOf = new Map((names ?? []).map((c) => [`${c.round}/${c.number}`, c.found_ign]));
+  const { data: names } = await admin.from("coins").select("round, number, found_ign, found_name").not("found_at", "is", null);
+  const nameOf = new Map((names ?? []).map((c) => [`${c.round}/${c.number}`, c.found_ign || c.found_name]));
   const entries = (data ?? []).map((e) => ({
     at: e.at,
     delta: Number(e.delta),
@@ -140,12 +140,12 @@ async function check(req: Request) {
   const code = canon(b?.code);
   if (!code) return json(400, { ok: false, status: "malformed", message: "that is not a full code" });
   const hash = await sha256(code);
-  const { data: c } = await admin.from("coins").select("round, number, found_at, found_ign").eq("hash", hash).maybeSingle();
+  const { data: c } = await admin.from("coins").select("round, number, found_at, found_ign, found_name").eq("hash", hash).maybeSingle();
   if (!c) return json(200, { ok: true, status: "unknown", message: "no coin has this code" });
   if (c.found_at) {
     return json(200, {
       ok: true, status: "spent", round: c.round, number: c.number, found_at: c.found_at,
-      message: `R${c.round} coin ${c.number} was redeemed ${new Date(c.found_at).toUTCString()} by ${c.found_ign || "someone"}`,
+      message: `R${c.round} coin ${c.number} was redeemed ${new Date(c.found_at).toUTCString()} by ${c.found_ign || c.found_name || "someone"}`,
     });
   }
   return json(200, { ok: true, status: "unspent", round: c.round, number: c.number, message: `R${c.round} coin ${c.number} is real and unspent` });
@@ -161,8 +161,11 @@ async function redeem(req: Request) {
   const code = canon(b?.code);
   if (!code) return json(400, { ok: false, message: "that is not a full code" });
   const ign = typeof b?.ign === "string" ? b.ign.replace(/[^A-Za-z0-9_]/g, "").slice(0, 16) : "";
+  const m = (user.user_metadata ?? {}) as Record<string, unknown>;
+  const cc = (m.custom_claims ?? {}) as Record<string, unknown>;
+  const discordName = String(cc.global_name || m.full_name || m.preferred_username || m.name || "").slice(0, 32);
   const hash = await sha256(code);
-  const { data, error } = await admin.rpc("claim_coin", { p_hash: hash, p_user: user.id, p_ign: ign || null });
+  const { data, error } = await admin.rpc("claim_coin", { p_hash: hash, p_user: user.id, p_ign: ign || null, p_name: discordName || null });
   if (error) {
     const m = error.message ?? "";
     if (m.includes("blacklisted")) return json(403, { ok: false, message: "this account is on the hider blacklist and can never redeem" });
@@ -172,7 +175,7 @@ async function redeem(req: Request) {
     throw error;
   }
   const row = Array.isArray(data) ? data[0] : data;
-  announce(row.round, row.number, ign).catch((e) => console.error("webhook", e));
+  announce(row.round, row.number, ign || discordName).catch((e) => console.error("webhook", e));
   return json(200, { ok: true, round: row.round, number: row.number, message: `R${row.round} coin ${row.number} is yours. 1 QLL minted to you, 0.1 to the founder wallet` });
 }
 

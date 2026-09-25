@@ -35,7 +35,7 @@
   h1 small { color:var(--dim); font-family:ui-monospace, monospace }
   .bar .brand { display:flex; align-items:center; gap:9px }
   .bar .logo { width:22px; height:22px; display:block; image-rendering:pixelated }
-  body::before { content:""; position:fixed; inset:0; z-index:0; pointer-events:none; background:#000 url(map.jpg) center / cover no-repeat; opacity:.22 }
+  body::before { content:""; position:fixed; inset:0; z-index:0; pointer-events:none; background:#000 url(map.jpg) center / cover no-repeat; opacity:1 }
   @media (max-width:700px){ body::before { background-image:url(map-small.jpg) } }
   [hidden] { display:none !important }
   button:disabled { opacity:.35; cursor:default }
@@ -44,7 +44,7 @@
   h2 { font-size:12px; color:var(--dim); letter-spacing:.14em; margin-bottom:16px }
   .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px }
   .card { aspect-ratio:1; border:1px solid var(--line); padding:12px; display:flex; flex-direction:column; justify-content:space-between; background:rgba(0,0,0,.55); min-width:0 }
-  .card img { width:38%; max-width:64px; image-rendering:pixelated; align-self:flex-end }
+  .card img.book { width:42%; max-width:72px; image-rendering:pixelated; align-self:flex-end }
   .card b { display:block; font-size:clamp(16px,2.4vw,22px); line-height:1.1; margin-top:auto }
   .card span { font-size:10px; letter-spacing:.08em; color:var(--dim); line-height:1.4 }
   .card i { font-style:normal; font-size:9px; color:var(--dim); text-transform:none; letter-spacing:0 }
@@ -57,7 +57,10 @@
   .redeem input { width:100%; background:#000; color:#fff; border:2px solid #fff; padding:18px 16px; font:inherit; font-size:clamp(18px,4vw,28px); letter-spacing:.12em; text-transform:uppercase; outline:0 }
   .redeem input:focus { border-color:var(--hot) }
   .redeem input.small { font-size:clamp(14px,2.6vw,18px); letter-spacing:.06em; text-transform:none; padding:12px 14px }
-  .auth { display:grid; gap:10px; grid-template-columns:1fr auto; align-items:stretch }
+  .auth { display:grid; gap:10px; grid-template-columns:1fr; align-items:stretch }
+  .ign-row { display:flex; gap:10px; align-items:center } .ign-row input { flex:1 }
+  .head { width:40px; height:40px; image-rendering:pixelated; border:1px solid var(--line); background:#000 }
+  .card .head { width:16px; height:16px; vertical-align:middle; margin-right:5px; border:0 }
   .auth .who { grid-column:1 / -1; font-size:12px; color:var(--dim); letter-spacing:.14em }
   .auth .who a { color:#fff; text-decoration:underline; cursor:pointer }
   .rstat { font-size:12px; letter-spacing:.16em; color:var(--dim); margin:-10px 0 18px }
@@ -94,18 +97,15 @@
     <h2>REDEEM A BOOK</h2>
     <div class="redeem">
       <input id="code" placeholder="QLL-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" autocapitalize="characters">
-      <input id="ign" class="small" placeholder="YOUR MINECRAFT NAME - SHOWN ON THE BOARD WHEN YOU REDEEM" maxlength="16" autocomplete="off" spellcheck="false">
+      <div class="msg" id="msg">TYPE THE CODE FROM PAGE ONE. IT IS CHECKED AS YOU TYPE, NOTHING IS SPENT UNTIL YOU PRESS REDEEM.</div>
+      <div class="ign-row"><img id="ign-head" class="head" alt="" hidden><input id="ign" class="small" placeholder="MINECRAFT NAME (OPTIONAL) - SHOWN ON THE CARD INSTEAD OF YOUR DISCORD NAME" maxlength="16" autocomplete="off" spellcheck="false"></div>
       <div class="auth" id="auth">
-        <button id="btn-discord">SIGN IN WITH DISCORD</button>
-        <button class="ghost" id="btn-email-toggle">EMAIL LINK INSTEAD</button>
-        <input id="email" class="small" type="email" placeholder="EMAIL - WE SEND A SIGN-IN LINK, NO PASSWORD" autocomplete="email" hidden>
-        <button class="ghost" id="btn-login" hidden>SEND LINK</button>
-        <div class="who" id="who">REDEEMING NEEDS A SIGN-IN SO THE COIN HAS AN OWNER. CHECKING DOES NOT.</div>
+        <button id="btn-discord">SIGN IN WITH DISCORD TO REDEEM</button>
+        <button id="btn-redeem" hidden>REDEEM</button>
+        <div class="who" id="who">A COIN NEEDS AN OWNER, SO REDEEMING TAKES A DISCORD SIGN-IN.</div>
         <div class="who" id="mine" hidden></div>
         <div class="grid mine" id="mine-books" hidden></div>
       </div>
-      <div class="row"><button id="btn-redeem">REDEEM</button><button class="ghost" id="btn-check">JUST CHECK</button></div>
-      <div class="msg" id="msg"></div>
     </div>
   </section>
 
@@ -183,21 +183,22 @@ async function loadBoard(){
     const b = $('#board');
     if (!coins.length) { b.innerHTML = '<div class="card empty">NOTHING HIDDEN YET</div>'; return; }
     b.innerHTML = coins.map(c => {
-      const f = !!c.found_at;
-      const st = f ? 'FOUND · ' + esc((c.found_ign || 'ANONYMOUS').toUpperCase()) + ' · ' + day(c.found_at) : 'STILL OUT · HIDDEN ' + day(c.hidden_at) + (c.blind ? ' · BLIND RUN' : '');
-      return `<div class="card ${f ? 'found' : 'out'}" title="sha256 ${c.hash}"><img src="${f ? 'favicon.svg' : 'book-grey.svg'}" alt=""><b>COIN ${c.number}</b><span>${st}</span><i>${c.hash.slice(0,16)}…</i></div>`;
+      const f = !!c.found_at, name = esc((c.found_ign || c.found_name || 'ANONYMOUS').toUpperCase());
+      const st = f ? head(c.found_ign) + 'FOUND · ' + name + ' · ' + day(c.found_at) : 'STILL OUT · HIDDEN ' + day(c.hidden_at) + (c.blind ? ' · BLIND RUN' : '');
+      return `<div class="card ${f ? 'found' : 'out'}" title="sha256 ${c.hash}"><img class="book" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><b>COIN ${c.number}</b><span>${st}</span><i>${c.hash.slice(0,16)}…</i></div>`;
     }).join('');
   } catch(e) { $('#board').innerHTML = '<div class="card empty">BOARD UNAVAILABLE</div>'; $('#round-status').textContent = ''; }
 }
 const norm = v => v.toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^QLL/,'').replace(/(.{5})/g,'$1-').replace(/-$/,'');
-let session = null, emailMode = false;
+const validIgn = v => /^[A-Za-z0-9_]{3,16}$/.test(v);
+const head = ign => validIgn(ign || '') ? `<img class="head" src="https://mc-heads.net/avatar/${encodeURIComponent(ign)}/16" alt="">` : '';
+let session = null;
 const nameOf = u => { const m = u.user_metadata || {}; return (m.custom_claims && m.custom_claims.global_name) || m.full_name || m.preferred_username || m.name || u.email || 'YOU'; };
 async function showAuth(){
   const on = !!session;
-  $('#btn-discord').hidden = on; $('#btn-email-toggle').hidden = on;
-  $('#email').hidden = on || !emailMode; $('#btn-login').hidden = on || !emailMode;
+  $('#btn-discord').hidden = on; $('#btn-redeem').hidden = !on;
   const who = $('#who'), mine = $('#mine'), books = $('#mine-books');
-  if (!on) { who.textContent = 'REDEEMING NEEDS A SIGN-IN SO THE COIN HAS AN OWNER. CHECKING DOES NOT.'; mine.hidden = true; books.hidden = true; return; }
+  if (!on) { who.textContent = 'A COIN NEEDS AN OWNER, SO REDEEMING TAKES A DISCORD SIGN-IN.'; mine.hidden = true; books.hidden = true; return; }
   who.innerHTML = 'SIGNED IN AS ' + esc(nameOf(session.user)).toUpperCase() + ' · <a id="logout">SIGN OUT</a>'; $('#logout').onclick = () => sb.auth.signOut();
   try {
     const { data, error } = await sb.from('ledger').select('delta, coin_round, coin_number, at').eq('user_id', session.user.id).order('at', {ascending:false});
@@ -206,7 +207,7 @@ async function showAuth(){
     mine.hidden = false;
     mine.textContent = 'YOUR COINS: ' + bal.toFixed(1) + ' QLL' + (rows.length ? ' · ' + rows.length + (rows.length === 1 ? ' BOOK' : ' BOOKS') : ' · NONE YET. GO FIND ONE.');
     books.hidden = !rows.length;
-    books.innerHTML = rows.map(e => `<div class="card found"><img src="favicon.svg" alt=""><b>R${e.coin_round} COIN ${e.coin_number}</b><span>REDEEMED ${day(e.at)}</span></div>`).join('');
+    books.innerHTML = rows.map(e => `<div class="card found"><img class="book" src="book-gold.svg" alt=""><b>R${e.coin_round} COIN ${e.coin_number}</b><span>REDEEMED ${day(e.at)}</span></div>`).join('');
   } catch(e) { mine.hidden = true; books.hidden = true; }
 }
 if (sb) { sb.auth.getSession().then(({data}) => { session = data.session; showAuth(); }); sb.auth.onAuthStateChange((_e, s) => { session = s; showAuth(); }); }
@@ -214,31 +215,34 @@ try { $('#ign').value = localStorage.getItem('qll-ign') || ''; } catch(e) {}
 $('#btn-discord').onclick = async () => {
   $('#msg').textContent = '…';
   const { error } = await sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname } });
-  if (error) $('#msg').textContent = ('DISCORD SIGN-IN IS NOT ENABLED YET: ' + error.message).toUpperCase();
+  if (error) $('#msg').textContent = ('DISCORD SIGN-IN FAILED: ' + error.message).toUpperCase();
 };
-$('#btn-email-toggle').onclick = () => { emailMode = !emailMode; showAuth(); };
-// until the Discord provider is switched on, say so and open the email path by default
 fetch(SB_URL + '/auth/v1/settings', { headers: { apikey: SB_ANON } }).then(r => r.json()).then(j => {
-  if (!(j && j.external && j.external.discord)) { const b = $('#btn-discord'); b.textContent = 'DISCORD SIGN-IN: SOON'; b.disabled = true; emailMode = true; showAuth(); }
+  if (!(j && j.external && j.external.discord)) { const b = $('#btn-discord'); b.textContent = 'DISCORD SIGN-IN: SOON'; b.disabled = true; }
 }).catch(() => {});
-$('#btn-login').onclick = async () => {
-  const email = $('#email').value.trim(); if (!email.includes('@')) { $('#msg').textContent = 'THAT IS NOT AN EMAIL.'; return; }
-  $('#msg').textContent = '…';
-  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
-  $('#msg').textContent = error ? ('COULD NOT SEND: ' + error.message).toUpperCase() : 'LINK SENT. OPEN IT ON THIS DEVICE, THEN REDEEM.';
-};
+// live skin preview for the Minecraft name
+function showHead(){ const v = $('#ign').value.trim(), im = $('#ign-head'); if (validIgn(v)) { im.src = 'https://mc-heads.net/avatar/' + encodeURIComponent(v) + '/40'; im.hidden = false; } else im.hidden = true; }
+$('#ign').addEventListener('input', showHead); showHead();
+// the code is checked as it is typed; nothing is spent until REDEEM
+let checkTimer = null, lastChecked = '';
+$('#code').addEventListener('input', () => {
+  clearTimeout(checkTimer);
+  const code = 'QLL-' + norm($('#code').value);
+  if (code.length < 27) { $('#msg').textContent = code.length > 4 ? (27 - code.length) + ' CHARACTERS TO GO.' : 'TYPE THE CODE FROM PAGE ONE. IT IS CHECKED AS YOU TYPE, NOTHING IS SPENT UNTIL YOU PRESS REDEEM.'; lastChecked = ''; return; }
+  if (code === lastChecked) return;
+  checkTimer = setTimeout(() => { lastChecked = code; send('/check'); }, 350);
+});
 async function send(path){
   const code = 'QLL-' + norm($('#code').value);
   if (code.length < 27) { $('#msg').textContent = 'THAT IS NOT A FULL CODE.'; return; }
   const headers = {'Content-Type':'application/json'};
-  if (path === '/redeem') { if (!session) { $('#msg').textContent = 'SIGN IN FIRST - SEND YOURSELF THE LINK ABOVE.'; return; } headers['Authorization'] = 'Bearer ' + session.access_token; }
+  if (path === '/redeem') { if (!session) { $('#msg').textContent = 'SIGN IN WITH DISCORD FIRST, THEN PRESS REDEEM.'; return; } headers['Authorization'] = 'Bearer ' + session.access_token; }
   const ign = $('#ign').value.trim(); try { localStorage.setItem('qll-ign', ign); } catch(e) {}
   $('#msg').textContent = '…';
   try { const r = await fetch(API+path, {method:'POST', headers, body:JSON.stringify({code, ign})}); const j = await r.json(); $('#msg').textContent = (j.message || JSON.stringify(j)).toUpperCase(); if (j.ok && path === '/redeem') { loadBoard(); showAuth(); } }
   catch(e) { $('#msg').textContent = 'COULD NOT REACH THE SERVER.'; }
 }
 $('#btn-redeem').onclick = () => send('/redeem');
-$('#btn-check').onclick  = () => send('/check');
 loadBoard();
 </script>
 </body>
