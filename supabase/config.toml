@@ -413,7 +413,7 @@ verify_jwt = false
 # Discord sign-in. Uncomment once DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET are exported (from ~/.config/quillcoin/env),
 # then run: supabase config push --project-ref ovjeipprgkeygnlkraiu
 # The Discord app needs this redirect: https://ovjeipprgkeygnlkraiu.supabase.co/auth/v1/callback
-# [auth.external.discord]
-# enabled = true
-# client_id = "env(DISCORD_CLIENT_ID)"
-# secret = "env(DISCORD_CLIENT_SECRET)"
+[auth.external.discord]
+enabled = true
+client_id = "env(DISCORD_CLIENT_ID)"
+secret = "env(DISCORD_CLIENT_SECRET)"
