@@ -105,8 +105,9 @@
   .codewrap input { border:0; padding-left:0; width:100%; background:transparent; position:relative }
   .redeem input.small { font-size:clamp(14px,2.6vw,18px); letter-spacing:.06em; text-transform:none; padding:12px 14px }
   .auth { display:grid; gap:10px; grid-template-columns:1fr; align-items:stretch }
-  .ign-row { display:flex; gap:10px; align-items:center; border:2px solid #3c8527; padding-left:8px }   /* one green box: head + field */
-  .ign-row input { flex:1; border:0 } .ign-row .head { border:0 }
+  .ign-row { display:flex; gap:10px; align-items:center }                       /* head box, a gap, then the green field */
+  .ign-row input { flex:1; border:2px solid #3c8527 } .ign-row input:focus { border-color:#3c8527 }
+  .ign-row.missing input, .ign-row.missing .head { border-color:#ff3b3b }
   #discord-done { border-color:#5865f2 } #discord-done a:hover { color:#5865f2 }
   #ign-done { border-color:#3c8527 } #ign-done a:hover { color:#3c8527 }
   .head { width:40px; height:40px; image-rendering:pixelated; border:1px solid var(--line); background:#000; transition:opacity .22s ease }
