@@ -60,7 +60,7 @@
   .leaflet-popup-content-wrapper { background:#000; color:#fff; border:1px solid var(--hot); border-radius:0; box-shadow:none; font-family:inherit; text-transform:uppercase; letter-spacing:.08em; font-size:12px }
   .leaflet-popup-content { margin:10px 14px; line-height:1.5 } .leaflet-popup-tip { background:#000; border:1px solid var(--hot) } .leaflet-popup-close-button { color:#fff }
   .book-marker { image-rendering:pixelated; filter:drop-shadow(0 0 6px #ffd400) }
-  .ghost-marker { image-rendering:pixelated; opacity:.8; filter:grayscale(1) drop-shadow(0 0 4px #fff); transition:opacity .38s ease; cursor:help }
+  .ghost-marker { image-rendering:pixelated; opacity:.8; filter:grayscale(1) drop-shadow(0 0 4px #fff); transition:opacity .6s ease; cursor:help }
   .leaflet-tooltip.ghost-tip { background:#000; color:#fff; border:1px solid var(--line); border-radius:0; box-shadow:none; font-family:inherit; font-size:11px; letter-spacing:.1em; text-transform:uppercase; padding:6px 9px; line-height:1.5 }
   .leaflet-tooltip.ghost-tip .dim { color:var(--dim); font-size:9px }
   .leaflet-tooltip-top.ghost-tip::before { border-top-color:var(--line) }
@@ -117,6 +117,11 @@
   button:hover { background:var(--hot); border-color:var(--hot); color:#000 }
   #btn-discord:hover:not(:disabled) { background:#5865f2; border-color:#5865f2; color:#fff }
   #btn-ign:hover { background:#3c8527; border-color:#3c8527; color:#fff }
+  .done { display:flex; align-items:center; gap:12px; border:2px solid #fff; padding:8px 14px; min-height:52px; font-weight:700; letter-spacing:.08em; font-size:14px }
+  .done .head { width:32px; height:32px } .done .pfp { border-radius:50%; border:0 }
+  .done a { margin-left:auto; color:var(--dim); cursor:pointer; font-size:12px; letter-spacing:.14em } .done a:hover { color:var(--hot) }
+  button.locked, button.locked:hover { background:#000; color:var(--dim); border-color:var(--line) }
+  .missing { border-color:#ff3b3b !important; box-shadow:0 0 0 1px #ff3b3b }
   .msg { min-height:20px; font-size:13px; color:var(--dim) }
   .stats { display:grid; grid-template-columns:repeat(3,1fr); border:1px solid var(--line); margin-bottom:22px }
   .stat { padding:14px; border-right:1px solid var(--line) } .stat:last-child { border-right:0 }
@@ -155,10 +160,12 @@
       <div class="codewrap"><span class="prefix">QLL-</span><span class="field"><span class="mask" id="mask" aria-hidden="true">XXXXX-XXXXX-XXXXX-XXXXX</span><input id="code" autocomplete="off" spellcheck="false" autocapitalize="characters" aria-label="code"></span></div>
       <div class="msg" id="msg">CHECKED AS YOU TYPE. NOTHING IS SPENT UNTIL YOU PRESS REDEEM.</div>
       <div class="auth" id="auth">
-        <button id="btn-discord">SIGN IN WITH DISCORD TO REDEEM</button>
-        <button id="btn-redeem" hidden>REDEEM</button>
+        <button id="btn-discord">SIGN IN WITH DISCORD</button>
+        <div class="done" id="discord-done" hidden><img id="discord-pfp" class="head pfp" alt="" hidden><span id="discord-name"></span><a id="logout">SIGN OUT</a></div>
         <button id="btn-ign">MINECRAFT USERNAME</button>
-        <div class="ign-row" id="ign-row" hidden><img id="ign-head" class="head" alt="" hidden><input id="ign" class="small" placeholder="MINECRAFT NAME (OPTIONAL) · SHOWN ON YOUR CARD" maxlength="16" autocomplete="off" spellcheck="false"></div>
+        <div class="ign-row" id="ign-row" hidden><img id="ign-head" class="head" alt=""><input id="ign" class="small" placeholder="MINECRAFT NAME · ENTER TO LOCK IT IN" maxlength="16" autocomplete="off" spellcheck="false"></div>
+        <div class="done" id="ign-done" hidden><img id="ign-head-done" class="head" alt=""><span id="ign-name"></span><a id="ign-edit" title="change it">✕</a></div>
+        <button id="btn-redeem" class="locked">REDEEM</button>
         <div class="who" id="who">A COIN NEEDS AN OWNER, SO REDEEMING TAKES A DISCORD SIGN-IN.</div>
         <div class="who" id="mine" hidden></div>
         <div class="grid mine" id="mine-books" hidden></div>
@@ -316,8 +323,8 @@ function startGhosts(){
   ghostTimer = setInterval(() => {
     const g = ghosts[Math.floor(Math.random() * ghosts.length)], el = g.getElement(); if (!el) return;
     el.style.opacity = '0';
-    setTimeout(() => { g.setLatLng(ringSpot()); el.style.opacity = ''; }, 380);
-  }, Math.max(120, 1400 / ghosts.length));
+    setTimeout(() => { g.setLatLng(ringSpot()); el.style.opacity = ''; }, 600);
+  }, Math.max(900, 7000 / ghosts.length));
 }
 function stopGhosts(){ if (ghostTimer) clearInterval(ghostTimer); ghostTimer = null; ghosts.forEach(g => g.remove()); ghosts = []; }
 function setMapMode(on){
@@ -339,14 +346,25 @@ $('#fm-search').onsubmit = e => { e.preventDefault(); const m = $('#fm-q').value
 $('#v-cards').onclick = () => { view = 'cards'; try { localStorage.setItem('qll-view', view); } catch(e) {} renderBoard(); };
 $('#v-list').onclick  = () => { view = 'list';  try { localStorage.setItem('qll-view', view); } catch(e) {} renderBoard(); };
 const head = ign => validIgn(ign || '') ? `<img class="head" src="https://mc-heads.net/avatar/${encodeURIComponent(ign)}/16" alt="">` : '';
-let session = null;
+// ?flow=old keeps the first flow around for comparing: Discord only, name optional, REDEEM appears once signed in
+const FLOW = new URLSearchParams(location.search).get('flow') === 'old' ? 'old' : 'new';
+let session = null, ignLocked = false;
 const nameOf = u => { const m = u.user_metadata || {}; return (m.custom_claims && m.custom_claims.global_name) || m.full_name || m.preferred_username || m.name || u.email || 'YOU'; };
+const pfpOf = u => { const m = u.user_metadata || {}; return m.avatar_url || m.picture || ''; };
+function updateRedeem(){
+  const btn = $('#btn-redeem');
+  if (FLOW === 'old') { btn.hidden = !session; btn.classList.remove('locked'); return; }
+  btn.hidden = false; btn.classList.toggle('locked', !(session && ignLocked));
+  if (session) $('#btn-discord').classList.remove('missing');
+  if (ignLocked) { $('#btn-ign').classList.remove('missing'); $('#ign-row').classList.remove('missing'); }
+}
 async function showAuth(){
-  const on = !!session;
-  $('#btn-discord').hidden = on; $('#btn-redeem').hidden = !on;
-  const who = $('#who'), mine = $('#mine'), books = $('#mine-books');
-  if (!on) { who.textContent = 'A COIN NEEDS AN OWNER, SO REDEEMING TAKES A DISCORD SIGN-IN.'; mine.hidden = true; books.hidden = true; return; }
-  who.innerHTML = 'SIGNED IN AS ' + esc(nameOf(session.user)).toUpperCase() + ' · <a id="logout">SIGN OUT</a>'; $('#logout').onclick = () => sb.auth.signOut();
+  const on = !!session, who = $('#who'), mine = $('#mine'), books = $('#mine-books');
+  $('#btn-discord').hidden = on; $('#discord-done').hidden = !on;
+  if (on) { const u = session.user, p = pfpOf(u), im = $('#discord-pfp'); $('#discord-name').textContent = nameOf(u).toUpperCase(); if (p) { im.src = p; im.hidden = false; } else im.hidden = true; }
+  updateRedeem();
+  who.textContent = FLOW === 'old' ? (on ? '' : 'A COIN NEEDS AN OWNER, SO REDEEMING TAKES A DISCORD SIGN-IN.') : 'DISCORD OWNS THE COIN. YOUR MINECRAFT NAME GOES ON THE CARD.';
+  if (!on) { mine.hidden = true; books.hidden = true; return; }
   try {
     const { data, error } = await sb.from('ledger').select('delta, coin_round, coin_number, at').eq('user_id', session.user.id).order('at', {ascending:false});
     if (error) throw error;
@@ -358,16 +376,15 @@ async function showAuth(){
   } catch(e) { mine.hidden = true; books.hidden = true; }
 }
 if (sb) { sb.auth.getSession().then(({data}) => { session = data.session; showAuth(); }); sb.auth.onAuthStateChange((_e, s) => { session = s; showAuth(); }); }
-try { $('#ign').value = localStorage.getItem('qll-ign') || ''; } catch(e) {}
+$('#logout').onclick = () => sb.auth.signOut();
 $('#btn-discord').onclick = async () => {
   $('#msg').textContent = '…';
-  const { error } = await sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname } });
+  const { error } = await sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname + location.search } });
   if (error) $('#msg').textContent = ('DISCORD SIGN-IN FAILED: ' + error.message).toUpperCase();
 };
 fetch(SB_URL + '/auth/v1/settings', { headers: { apikey: SB_ANON } }).then(r => r.json()).then(j => {
   if (!(j && j.external && j.external.discord)) { const b = $('#btn-discord'); b.textContent = 'DISCORD SIGN-IN: SOON'; b.disabled = true; }
 }).catch(() => {});
-// live skin preview for the Minecraft name
 // the head slot is always there: it flips through 2b2t faces until you type your own name
 const HEADS = ['FitMC','popbob','Hausemaster','jared2013','SalC1','x0XP','Sato86','Offtopia','Armorsmith','Fr1kin','Coltsnid','Jaang','iTristan','xcc2','Willyq','Krobar01','Torogadude','0xymoron','Hermeticlock','Rusher'];
 let headTimer = null, headIdx = Math.floor(Math.random() * HEADS.length);
@@ -378,13 +395,26 @@ function showHead(){
   if (validIgn(v)) { clearInterval(headTimer); headTimer = null; im.src = headUrl(v); im.style.opacity = ''; return; }
   if (!headTimer) { im.src = headUrl(HEADS[headIdx]); headTimer = setInterval(nextHead, 1300); }
 }
-$('#ign').addEventListener('input', showHead); showHead();
-const openIgn = () => { $('#btn-ign').hidden = true; $('#ign-row').hidden = false; showHead(); };
+$('#ign').addEventListener('input', () => { $('#ign-row').classList.remove('missing'); showHead(); });
+const openIgn = () => { ignLocked = false; $('#btn-ign').hidden = true; $('#ign-done').hidden = true; $('#ign-row').hidden = false; showHead(); updateRedeem(); };
 const closeIgn = () => { $('#ign-row').hidden = true; $('#btn-ign').hidden = false; clearInterval(headTimer); headTimer = null; };
+function lockIgn(){
+  const v = $('#ign').value.trim();
+  if (!validIgn(v)) { $('#ign-row').classList.add('missing'); $('#msg').textContent = 'THAT IS NOT A MINECRAFT NAME.'; return; }
+  ignLocked = true; try { localStorage.setItem('qll-ign', v); } catch(e) {}
+  clearInterval(headTimer); headTimer = null;
+  $('#ign-row').hidden = true; $('#btn-ign').hidden = true; $('#ign-done').hidden = false;
+  $('#ign-head-done').src = headUrl(v); $('#ign-name').textContent = v.toUpperCase();
+  $('#ign-row').classList.remove('missing'); updateRedeem();
+}
 $('#btn-ign').onclick = () => { openIgn(); $('#ign').focus(); };
+$('#ign-edit').onclick = () => { openIgn(); $('#ign').focus(); };
+$('#ign').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); lockIgn(); } else if (e.key === 'Escape' && !$('#ign').value.trim()) closeIgn(); });
 // click anywhere else with nothing typed and the field folds back into the button
 document.addEventListener('pointerdown', e => { const row = $('#ign-row'); if (!row.hidden && !row.contains(e.target) && !$('#ign').value.trim()) closeIgn(); });
-if ($('#ign').value.trim()) openIgn();                                     // a remembered name shows straight away
+try { $('#ign').value = localStorage.getItem('qll-ign') || ''; } catch(e) {}
+if (validIgn($('#ign').value.trim())) lockIgn(); else if ($('#ign').value.trim()) openIgn();   // a remembered name is locked in from the start
+updateRedeem();
 // the code is checked as it is typed; nothing is spent until REDEEM
 let checkTimer = null, lastChecked = '';
 $('#code').addEventListener('input', e => {
@@ -394,6 +424,7 @@ $('#code').addEventListener('input', e => {
   el.value = body ? body.match(/.{1,5}/g).join('-') : '';
   el.setSelectionRange(el.value.length, el.value.length);
   $('#mask').innerHTML = '<i>' + esc(el.value) + '</i>' + 'XXXXX-XXXXX-XXXXX-XXXXX'.slice(el.value.length);   // the X's stay grey until typed over
+  $('.codewrap').classList.remove('missing');
   clearTimeout(checkTimer);
   const code = 'QLL-' + norm($('#code').value);
   if (code.length < 27) { $('#msg').textContent = code.length > 4 ? (27 - code.length) + ' CHARACTERS TO GO.' : 'CHECKED AS YOU TYPE. NOTHING IS SPENT UNTIL YOU PRESS REDEEM.'; lastChecked = ''; return; }
@@ -402,9 +433,19 @@ $('#code').addEventListener('input', e => {
 });
 async function send(path){
   const code = 'QLL-' + norm($('#code').value);
-  if (code.length < 27) { $('#msg').textContent = 'THAT IS NOT A FULL CODE.'; return; }
+  if (path === '/redeem' && FLOW !== 'old') {                                // press REDEEM too early and everything still missing lights up red at once
+    const missing = [];
+    if (code.length < 27) { $('.codewrap').classList.add('missing'); missing.push('THE FULL CODE'); }
+    if (!session) { $('#btn-discord').classList.add('missing'); missing.push('DISCORD'); }
+    if (!ignLocked) { ($('#ign-row').hidden ? $('#btn-ign') : $('#ign-row')).classList.add('missing'); missing.push('YOUR MINECRAFT NAME'); }
+    if (missing.length) { $('#msg').textContent = 'STILL NEEDED: ' + missing.join(' · ') + '.'; return; }
+  }
+  if (code.length < 27) { $('#msg').textContent = 'THAT IS NOT A FULL CODE.'; $('.codewrap').classList.add('missing'); return; }
   const headers = {'Content-Type':'application/json'};
-  if (path === '/redeem') { if (!session) { $('#msg').textContent = 'SIGN IN WITH DISCORD FIRST, THEN PRESS REDEEM.'; return; } headers['Authorization'] = 'Bearer ' + session.access_token; }
+  if (path === '/redeem') {
+    if (!session) { $('#msg').textContent = 'SIGN IN WITH DISCORD FIRST, THEN PRESS REDEEM.'; $('#btn-discord').classList.add('missing'); return; }
+    headers['Authorization'] = 'Bearer ' + session.access_token;
+  }
   const ign = $('#ign').value.trim(); try { localStorage.setItem('qll-ign', ign); } catch(e) {}
   $('#msg').textContent = '…';
   try { const r = await fetch(API+path, {method:'POST', headers, body:JSON.stringify({code, ign})}); const j = await r.json(); $('#msg').textContent = (j.message || JSON.stringify(j)).toUpperCase(); if (j.ok && path === '/redeem') { loadBoard(); showAuth(); } }
