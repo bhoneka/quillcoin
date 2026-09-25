@@ -60,6 +60,7 @@
   .leaflet-popup-content-wrapper { background:#000; color:#fff; border:1px solid var(--hot); border-radius:0; box-shadow:none; font-family:inherit; text-transform:uppercase; letter-spacing:.08em; font-size:12px }
   .leaflet-popup-content { margin:10px 14px; line-height:1.5 } .leaflet-popup-tip { background:#000; border:1px solid var(--hot) } .leaflet-popup-close-button { color:#fff }
   .book-marker { image-rendering:pixelated; filter:drop-shadow(0 0 6px #ffd400) }
+  .ghost-marker { image-rendering:pixelated; opacity:.8; filter:grayscale(1) drop-shadow(0 0 4px #fff); transition:opacity .38s ease }
   .map-teaser { margin-top:18px } .map-teaser a { color:var(--hot); text-decoration:underline }
   @media (max-width:600px){ .fm-top { flex-direction:column } .chips { justify-content:flex-start } .fm-search input { width:150px } }
   [hidden] { display:none !important }
@@ -261,7 +262,10 @@ function renderBoard(){
 const UNIT = 1024, NATIVE = 10;
 const toLatLng = (x, z) => L.latLng(-z / UNIT, x / UNIT);
 const toBlock = ll => ({ x: Math.round(ll.lng * UNIT), z: Math.round(-ll.lat * UNIT) });
-const PlaceTiles = L.TileLayer.extend({ getTileUrl: c => `https://2b2t.place/tiles/base/${NATIVE - c.z}/0/${Math.trunc(c.x / 32)}/${Math.trunc(c.y / 32)}/t.${c.x}.${c.y}.webp` });   // their path: /tiles/base/{lod}/{dimension}/{x/32}/{y/32}/t.{x}.{y}
+// their path: /tiles/{base|overlay}/{lod}/{dimension}/{x/32}/{y/32}/t.{x}.{y}.webp - "overlay" is the obsidian layer (the glasses at spawn)
+const CLEAR = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+const placeLayer = (kind, opts) => new (L.TileLayer.extend({ getTileUrl: c => `https://2b2t.place/tiles/${kind}/${NATIVE - c.z}/0/${Math.trunc(c.x / 32)}/${Math.trunc(c.y / 32)}/t.${c.x}.${c.y}.webp` }))('', opts);
+const ghostIcon = L.icon({ iconUrl: 'book-grey.svg', iconSize: [24, 24], iconAnchor: [12, 12], className: 'ghost-marker' });
 const bookIcon = L.icon({ iconUrl: 'book-gold.svg', iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -14], className: 'book-marker' });
 let map = null, markers = [];
 const foundOnes = () => lastCoins.filter(c => c.found_at && Number.isInteger(c.found_x) && Number.isInteger(c.found_z));
@@ -269,8 +273,10 @@ function ensureMap(){
   if (map) return map;
   map = L.map('leaf', { crs: L.CRS.Simple, minZoom: 0, maxZoom: 12, zoomControl: false, attributionControl: false, zoomSnap: 0.25, wheelPxPerZoomLevel: 90,
     maxBounds: L.latLngBounds(toLatLng(-600000, -600000), toLatLng(600000, 600000)), maxBoundsViscosity: 1 });
-  new PlaceTiles('', { minZoom: 0, maxZoom: 12, maxNativeZoom: NATIVE, tileSize: 512, noWrap: true, keepBuffer: 3,
-    bounds: L.latLngBounds(toLatLng(-524288, -524288), toLatLng(524288, 524288)) }).addTo(map);
+  const tileOpts = { minZoom: 0, maxZoom: 12, maxNativeZoom: NATIVE, tileSize: 512, noWrap: true, keepBuffer: 3, errorTileUrl: CLEAR,
+    bounds: L.latLngBounds(toLatLng(-524288, -524288), toLatLng(524288, 524288)) };
+  placeLayer('base', tileOpts).addTo(map);
+  placeLayer('overlay', tileOpts).addTo(map);
   L.circleMarker(toLatLng(0, 0), { radius: 5, color: '#ffd400', fillColor: '#ffd400', fillOpacity: 1, weight: 0 }).addTo(map).bindPopup('SPAWN<br>0, 0');
   map.on('mousemove', e => showCoords(toBlock(e.latlng)));
   map.on('move', () => { if (matchMedia('(hover: none)').matches) showCoords(toBlock(map.getCenter())); });
@@ -283,15 +289,31 @@ function renderMap(){
   if (!map) return;
   markers.forEach(m => m.remove()); markers = [];
   foundOnes().forEach(c => { markers.push(L.marker(toLatLng(c.found_x, c.found_z), { icon: bookIcon }).addTo(map).bindPopup(`R${ROUND} COIN ${c.number}<br>${finder(c)}<br>${c.found_x}, ${c.found_z}`)); });
+  if (document.body.classList.contains('mapmode')) startGhosts();      // the board may arrive after the map opened
 }
+// every still-hidden book is a grey ghost that teleports around the ring it could be in - nobody knows where they really are
+let ghosts = [], ghostTimer = null;
+const ringSpot = () => { const min = ROUND === 0 ? 2000 : 15000, max = 100000, a = Math.random() * Math.PI * 2, r = Math.sqrt(min * min + Math.random() * (max * max - min * min)); return toLatLng(Math.round(Math.cos(a) * r), Math.round(Math.sin(a) * r)); };
+function startGhosts(){
+  stopGhosts();
+  const hidden = lastCoins.filter(c => !c.found_at);
+  ghosts = hidden.map(c => L.marker(ringSpot(), { icon: ghostIcon, interactive: false, keyboard: false }).addTo(map));
+  if (!ghosts.length) return;
+  ghostTimer = setInterval(() => {
+    const g = ghosts[Math.floor(Math.random() * ghosts.length)], el = g.getElement(); if (!el) return;
+    el.style.opacity = '0';
+    setTimeout(() => { g.setLatLng(ringSpot()); el.style.opacity = ''; }, 380);
+  }, Math.max(120, 1400 / ghosts.length));
+}
+function stopGhosts(){ if (ghostTimer) clearInterval(ghostTimer); ghostTimer = null; ghosts.forEach(g => g.remove()); ghosts = []; }
 function setMapMode(on){
   document.body.classList.toggle('mapmode', on); $('#fullmap').hidden = !on; $('#nav-map').textContent = on ? 'CLOSE MAP' : 'MAP';
   if (on) {
     ensureMap(); document.body.classList.remove('color');
-    setTimeout(() => { map.invalidateSize(); renderMap(); }, 30);
+    setTimeout(() => { map.invalidateSize(); renderMap(); startGhosts(); }, 30);
     setTimeout(() => document.body.classList.add('color'), 350);       // black and white first, then the colour comes up
     if (!location.hash.startsWith('#map')) history.replaceState(null, '', '#map');
-  } else { document.body.classList.remove('color'); if (location.hash.startsWith('#map')) history.replaceState(null, '', location.pathname + location.search); }
+  } else { document.body.classList.remove('color'); stopGhosts(); if (location.hash.startsWith('#map')) history.replaceState(null, '', location.pathname + location.search); }
 }
 function goTo(x, z){ ensureMap(); map.setView(toLatLng(x, z), Math.max(map.getZoom(), 5.5)); L.popup({ closeButton: false }).setLatLng(toLatLng(x, z)).setContent(x + ', ' + z).openOn(map); }
 $('#nav-map').onclick = e => { e.preventDefault(); setMapMode(!document.body.classList.contains('mapmode')); };
