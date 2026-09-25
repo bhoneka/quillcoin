@@ -64,7 +64,7 @@
   .leaflet-tooltip.ghost-tip { background:#000; color:#fff; border:1px solid var(--line); border-radius:0; box-shadow:none; font-family:inherit; font-size:11px; letter-spacing:.1em; text-transform:uppercase; padding:6px 9px; line-height:1.5 }
   .leaflet-tooltip.ghost-tip .dim { color:var(--dim); font-size:9px }
   .leaflet-tooltip-top.ghost-tip::before { border-top-color:var(--line) }
-  .map-teaser { margin-top:18px } .map-teaser a { color:var(--hot); text-decoration:underline }
+  .map-cta { display:flex; align-items:center; gap:16px; margin-top:22px } .map-cta span { font-size:11px; letter-spacing:.14em; color:var(--dim) }
   @media (max-width:600px){ .fm-top { flex-direction:column } .chips { justify-content:flex-start } .fm-search input { width:150px } }
   [hidden] { display:none !important }
   button:disabled { opacity:.35; cursor:default }
@@ -145,8 +145,8 @@
     <h2>REDEEM A BOOK</h2>
     <div class="redeem">
       <input id="code" placeholder="QLL-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" autocapitalize="characters">
-      <div class="msg" id="msg">TYPE THE CODE FROM PAGE ONE. IT IS CHECKED AS YOU TYPE, NOTHING IS SPENT UNTIL YOU PRESS REDEEM.</div>
-      <div class="ign-row"><img id="ign-head" class="head" alt="" hidden><input id="ign" class="small" placeholder="MINECRAFT NAME (OPTIONAL) - SHOWN ON THE CARD INSTEAD OF YOUR DISCORD NAME" maxlength="16" autocomplete="off" spellcheck="false"></div>
+      <div class="msg" id="msg">CHECKED AS YOU TYPE. NOTHING IS SPENT UNTIL YOU PRESS REDEEM.</div>
+      <div class="ign-row"><img id="ign-head" class="head" alt="" hidden><input id="ign" class="small" placeholder="MINECRAFT NAME (OPTIONAL) · SHOWN ON YOUR CARD" maxlength="16" autocomplete="off" spellcheck="false"></div>
       <div class="auth" id="auth">
         <button id="btn-discord">SIGN IN WITH DISCORD TO REDEEM</button>
         <button id="btn-redeem" hidden>REDEEM</button>
@@ -167,7 +167,7 @@
     </div>
     <div class="view"><button class="ghost on" id="v-cards">CARDS</button><button class="ghost" id="v-list">LIST</button></div>
     <div class="grid" id="board"><div class="card empty">LOADING</div></div>
-    <p class="rstat map-teaser"><a href="#map" id="map-teaser">OPEN THE MAP ↗</a> · <span id="map-count">–</span> FOUND BOOKS SIT WHERE THEY WERE HIDDEN. A BOOK'S POSITION IS SEALED WITH ITS OWN CODE AND ONLY OPENS WHEN THAT CODE IS REDEEMED.</p>
+    <div class="map-cta"><button class="ghost" id="map-teaser">OPEN THE MAP ↗</button><span id="map-count">–</span></div>
   </section>
 
   <section>
@@ -194,6 +194,7 @@
     <p><b>What do I get?</b> One QuillCoin on your account the moment you redeem, and your name on that coin's card for good. You keep the book. It's spent, but it's yours.</p>
     <p><b>What is a QuillCoin worth?</b> Whatever people decide. Nothing is promised and nothing is sold by the founder. Round one is a ledger on this site; if it ever becomes a token, every balance here carries over.</p>
     <p><b>Can the hider cheat?</b> The hiding tool is open source and never shows the hider a code or a coordinate. Every hash is committed before the round opens. The hider's own accounts are blacklisted. The source is linked in the footer.</p>
+    <p><b>How does the map know where a found book was?</b> The moment a book is hidden, the tool seals the chest position with a key made from the book's own code. Nobody can open it, not the site, not the hider, until someone redeems that code. Then the book appears on the map. Unfound books drift around the map as grey ghosts: real count, fake spots.</p>
     <p><b>Someone redeemed my code first.</b> Then they held the book, or read it, before you did. First redemption wins. Guard it like a shulker.</p>
   </section>
 
@@ -228,9 +229,9 @@ async function loadBoard(){
     $('#s-hidden').textContent = coins.length; $('#s-found').textContent = found.length;
     $('#s-last').textContent = found.length ? since(found.map(c => c.found_at).sort().pop()) : '–';
     const rd = j.round, open = rd.opened_at && Date.parse(rd.opened_at) <= Date.now() && !(rd.closed_at && Date.parse(rd.closed_at) <= Date.now());
-    $('#round-status').textContent = ROUND === 0 ? 'SINGLEPLAYER TEST HIDES · WORTHLESS · REDEEMABLE FOR TESTING'
-      : open ? 'OPEN SINCE ' + day(rd.opened_at) + ' · EVERY HASH BELOW WAS COMMITTED BEFORE THAT DAY'
-      : 'NOT OPEN YET · HASHES ARE BEING COMMITTED · NOTHING CAN BE REDEEMED UNTIL IT OPENS';
+    $('#round-status').textContent = ROUND === 0 ? 'TEST ROUND · WORTHLESS'
+      : open ? 'OPEN SINCE ' + day(rd.opened_at) + ' · ALL HASHES COMMITTED BEFORE THAT DAY'
+      : 'NOT OPEN YET · HASHES BEING COMMITTED';
     lastCoins = coins; renderBoard(); renderMap();
   } catch(e) { $('#board').className = 'grid'; $('#board').innerHTML = '<div class="card empty">BOARD UNAVAILABLE</div>'; $('#round-status').textContent = ''; }
 }
@@ -256,7 +257,7 @@ function renderBoard(){
   if (!coins.length) { b.innerHTML = '<div class="card empty">NOTHING HIDDEN YET</div>'; return; }
   b.innerHTML = coins.map(c => {
     const f = !!c.found_at;
-    const st = f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT · HIDDEN ' + day(c.hidden_at) + (c.blind ? ' · BLIND RUN' : '');
+    const st = f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT · SINCE ' + day(c.hidden_at);
     return `<div class="card ${f ? 'found' : 'out'}" title="sha256 ${c.hash}"><img class="book" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><b>COIN ${c.number}</b><span>${st}</span><i>${c.hash.slice(0,16)}…</i></div>`;
   }).join('');
 }
@@ -288,7 +289,7 @@ function ensureMap(){
 }
 function showCoords(b){ $('#c-ow').innerHTML = 'OVERWORLD <b>' + b.x + ' ' + b.z + '</b>'; $('#c-ne').innerHTML = 'NETHER <b>' + Math.round(b.x / 8) + ' ' + Math.round(b.z / 8) + '</b>'; }
 function renderMap(){
-  $('#map-count').textContent = foundOnes().length;
+  $('#map-count').textContent = foundOnes().length + ' ON THE MAP · ' + lastCoins.filter(c => !c.found_at).length + ' STILL OUT';
   if (!map) return;
   markers.forEach(m => m.remove()); markers = [];
   foundOnes().forEach(c => { markers.push(L.marker(toLatLng(c.found_x, c.found_z), { icon: bookIcon }).addTo(map).bindPopup(`R${ROUND} COIN ${c.number}<br>${finder(c)}<br>${c.found_x}, ${c.found_z}`)); });
@@ -365,7 +366,7 @@ let checkTimer = null, lastChecked = '';
 $('#code').addEventListener('input', () => {
   clearTimeout(checkTimer);
   const code = 'QLL-' + norm($('#code').value);
-  if (code.length < 27) { $('#msg').textContent = code.length > 4 ? (27 - code.length) + ' CHARACTERS TO GO.' : 'TYPE THE CODE FROM PAGE ONE. IT IS CHECKED AS YOU TYPE, NOTHING IS SPENT UNTIL YOU PRESS REDEEM.'; lastChecked = ''; return; }
+  if (code.length < 27) { $('#msg').textContent = code.length > 4 ? (27 - code.length) + ' CHARACTERS TO GO.' : 'CHECKED AS YOU TYPE. NOTHING IS SPENT UNTIL YOU PRESS REDEEM.'; lastChecked = ''; return; }
   if (code === lastChecked) return;
   checkTimer = setTimeout(() => { lastChecked = code; send('/check'); }, 350);
 });
