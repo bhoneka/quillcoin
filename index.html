@@ -36,10 +36,13 @@
   h1 small { color:var(--dim); font-family:ui-monospace, monospace }
   .bar .brand { display:flex; align-items:center; gap:9px }
   .bar .logo { width:22px; height:22px; display:block; image-rendering:pixelated }
-  body::before { content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
-    background:radial-gradient(circle at 50% 42%, rgba(0,0,0,0) 0, rgba(0,0,0,.45) 16vmax, rgba(0,0,0,.92) 30vmax, #000 40vmax), #000 url(map.jpg) center / cover no-repeat }
-  @media (max-width:700px){ body::before { background:radial-gradient(circle at 50% 38%, rgba(0,0,0,0) 0, rgba(0,0,0,.5) 22vmax, #000 44vmax), #000 url(map-small.jpg) center / cover no-repeat } }
-  body.mapmode main, body.mapmode::before { display:none }
+  /* the map drifts very slowly behind the page; the vignette on top of it stays put */
+  body::before { content:""; position:fixed; inset:-8%; z-index:0; pointer-events:none; background:#000 url(map.jpg) center / cover no-repeat; animation:drift 140s ease-in-out infinite alternate; will-change:transform }
+  body::after { content:""; position:fixed; inset:0; z-index:0; pointer-events:none; background:radial-gradient(circle at 50% 42%, rgba(0,0,0,0) 0, rgba(0,0,0,.45) 16vmax, rgba(0,0,0,.92) 30vmax, #000 40vmax) }
+  @keyframes drift { from { transform:translate(-3%, -2%) scale(1.04) } to { transform:translate(3%, 2%) scale(1.1) } }
+  @media (max-width:700px){ body::before { background-image:url(map-small.jpg) } body::after { background:radial-gradient(circle at 50% 38%, rgba(0,0,0,0) 0, rgba(0,0,0,.5) 22vmax, #000 44vmax) } }
+  @media (prefers-reduced-motion: reduce){ body::before { animation:none } }
+  body.mapmode main, body.mapmode::before, body.mapmode::after { display:none }
   #fullmap { position:fixed; inset:0; z-index:4; background:#000 }
   #leaf { position:absolute; inset:45px 0 0 0; background:#000; cursor:crosshair }
   .leaflet-container { background:#000; font-family:inherit }
