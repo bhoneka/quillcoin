@@ -98,8 +98,11 @@
   .redeem input:focus { border-color:var(--hot) }
   .codewrap { display:flex; align-items:center; border:2px solid #fff; background:#000; padding-left:16px }
   .codewrap:focus-within { border-color:var(--hot) }
-  .codewrap .prefix { color:var(--dim); font-size:clamp(18px,4vw,28px); letter-spacing:.12em; user-select:none }
-  .codewrap input { border:0; padding-left:0; flex:1; min-width:0 }
+  .codewrap .prefix { color:#fff; font-size:clamp(18px,4vw,28px); letter-spacing:.12em; user-select:none }
+  .codewrap .field { position:relative; flex:1; min-width:0; display:block }
+  .codewrap .mask { position:absolute; inset:0; display:flex; align-items:center; padding:18px 16px 18px 0; color:var(--dim); font-size:clamp(18px,4vw,28px); letter-spacing:.12em; white-space:pre; pointer-events:none; overflow:hidden }
+  .codewrap .mask i { font-style:normal; color:transparent }
+  .codewrap input { border:0; padding-left:0; width:100%; background:transparent; position:relative }
   .redeem input.small { font-size:clamp(14px,2.6vw,18px); letter-spacing:.06em; text-transform:none; padding:12px 14px }
   .auth { display:grid; gap:10px; grid-template-columns:1fr; align-items:stretch }
   .ign-row { display:flex; gap:10px; align-items:center } .ign-row input { flex:1 }
@@ -149,7 +152,7 @@
   <section id="redeem">
     <h2>REDEEM A BOOK</h2>
     <div class="redeem">
-      <div class="codewrap"><span class="prefix">QLL-</span><input id="code" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>
+      <div class="codewrap"><span class="prefix">QLL-</span><span class="field"><span class="mask" id="mask" aria-hidden="true">XXXXX-XXXXX-XXXXX-XXXXX</span><input id="code" autocomplete="off" spellcheck="false" autocapitalize="characters" aria-label="code"></span></div>
       <div class="msg" id="msg">CHECKED AS YOU TYPE. NOTHING IS SPENT UNTIL YOU PRESS REDEEM.</div>
       <div class="auth" id="auth">
         <button id="btn-discord">SIGN IN WITH DISCORD TO REDEEM</button>
@@ -390,6 +393,7 @@ $('#code').addEventListener('input', e => {
   let body = (raw.startsWith('QLL') && raw.length > 3 ? raw.slice(3) : raw).slice(0, 20);   // a pasted full code loses its prefix, the field already shows it
   el.value = body ? body.match(/.{1,5}/g).join('-') : '';
   el.setSelectionRange(el.value.length, el.value.length);
+  $('#mask').innerHTML = '<i>' + esc(el.value) + '</i>' + 'XXXXX-XXXXX-XXXXX-XXXXX'.slice(el.value.length);   // the X's stay grey until typed over
   clearTimeout(checkTimer);
   const code = 'QLL-' + norm($('#code').value);
   if (code.length < 27) { $('#msg').textContent = code.length > 4 ? (27 - code.length) + ' CHARACTERS TO GO.' : 'CHECKED AS YOU TYPE. NOTHING IS SPENT UNTIL YOU PRESS REDEEM.'; lastChecked = ''; return; }
