@@ -105,7 +105,10 @@
   .codewrap input { border:0; padding-left:0; width:100%; background:transparent; position:relative }
   .redeem input.small { font-size:clamp(14px,2.6vw,18px); letter-spacing:.06em; text-transform:none; padding:12px 14px }
   .auth { display:grid; gap:10px; grid-template-columns:1fr; align-items:stretch }
-  .ign-row { display:flex; gap:10px; align-items:center } .ign-row input { flex:1 }
+  .ign-row { display:flex; gap:10px; align-items:center; border:2px solid #3c8527; padding-left:8px }   /* one green box: head + field */
+  .ign-row input { flex:1; border:0 } .ign-row .head { border:0 }
+  #discord-done { border-color:#5865f2 } #discord-done a:hover { color:#5865f2 }
+  #ign-done { border-color:#3c8527 } #ign-done a:hover { color:#3c8527 }
   .head { width:40px; height:40px; image-rendering:pixelated; border:1px solid var(--line); background:#000; transition:opacity .22s ease }
   .card .head { width:16px; height:16px; vertical-align:middle; margin-right:5px; border:0 }
   .auth .who { grid-column:1 / -1; font-size:12px; color:var(--dim); letter-spacing:.14em }
@@ -121,7 +124,7 @@
   .done .head { width:32px; height:32px } .done .pfp { border-radius:50%; border:0 }
   .done a { margin-left:auto; color:var(--dim); cursor:pointer; font-size:12px; letter-spacing:.14em } .done a:hover { color:var(--hot) }
   button.locked, button.locked:hover { background:#000; color:var(--dim); border-color:var(--line) }
-  .missing { border-color:#ff3b3b !important; box-shadow:0 0 0 1px #ff3b3b }
+  .missing { border-color:#ff3b3b !important }
   .msg { min-height:20px; font-size:13px; color:var(--dim) }
   .stats { display:grid; grid-template-columns:repeat(3,1fr); border:1px solid var(--line); margin-bottom:22px }
   .stat { padding:14px; border-right:1px solid var(--line) } .stat:last-child { border-right:0 }
