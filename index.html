@@ -60,7 +60,10 @@
   .leaflet-popup-content-wrapper { background:#000; color:#fff; border:1px solid var(--hot); border-radius:0; box-shadow:none; font-family:inherit; text-transform:uppercase; letter-spacing:.08em; font-size:12px }
   .leaflet-popup-content { margin:10px 14px; line-height:1.5 } .leaflet-popup-tip { background:#000; border:1px solid var(--hot) } .leaflet-popup-close-button { color:#fff }
   .book-marker { image-rendering:pixelated; filter:drop-shadow(0 0 6px #ffd400) }
-  .ghost-marker { image-rendering:pixelated; opacity:.8; filter:grayscale(1) drop-shadow(0 0 4px #fff); transition:opacity .38s ease }
+  .ghost-marker { image-rendering:pixelated; opacity:.8; filter:grayscale(1) drop-shadow(0 0 4px #fff); transition:opacity .38s ease; cursor:help }
+  .leaflet-tooltip.ghost-tip { background:#000; color:#fff; border:1px solid var(--line); border-radius:0; box-shadow:none; font-family:inherit; font-size:11px; letter-spacing:.1em; text-transform:uppercase; padding:6px 9px; line-height:1.5 }
+  .leaflet-tooltip.ghost-tip .dim { color:var(--dim); font-size:9px }
+  .leaflet-tooltip-top.ghost-tip::before { border-top-color:var(--line) }
   .map-teaser { margin-top:18px } .map-teaser a { color:var(--hot); text-decoration:underline }
   @media (max-width:600px){ .fm-top { flex-direction:column } .chips { justify-content:flex-start } .fm-search input { width:150px } }
   [hidden] { display:none !important }
@@ -297,7 +300,8 @@ const ringSpot = () => { const min = ROUND === 0 ? 2000 : 15000, max = 100000, a
 function startGhosts(){
   stopGhosts();
   const hidden = lastCoins.filter(c => !c.found_at);
-  ghosts = hidden.map(c => L.marker(ringSpot(), { icon: ghostIcon, interactive: false, keyboard: false }).addTo(map));
+  ghosts = hidden.map(c => L.marker(ringSpot(), { icon: ghostIcon, keyboard: false }).addTo(map)
+    .bindTooltip(`R${ROUND} COIN ${c.number} · STILL OUT · HIDDEN ${day(c.hidden_at)}<br><span class="dim">NOT ITS REAL SPOT. NOBODY KNOWS THAT.</span>`, { direction: 'top', offset: [0, -10], className: 'ghost-tip' }));
   if (!ghosts.length) return;
   ghostTimer = setInterval(() => {
     const g = ghosts[Math.floor(Math.random() * ghosts.length)], el = g.getElement(); if (!el) return;
