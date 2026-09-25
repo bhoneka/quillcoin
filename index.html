@@ -96,6 +96,10 @@
   .redeem { display:grid; gap:12px; max-width:760px }
   .redeem input { width:100%; background:#000; color:#fff; border:2px solid #fff; padding:18px 16px; font:inherit; font-size:clamp(18px,4vw,28px); letter-spacing:.12em; text-transform:uppercase; outline:0 }
   .redeem input:focus { border-color:var(--hot) }
+  .codewrap { display:flex; align-items:center; border:2px solid #fff; background:#000; padding-left:16px }
+  .codewrap:focus-within { border-color:var(--hot) }
+  .codewrap .prefix { color:var(--dim); font-size:clamp(18px,4vw,28px); letter-spacing:.12em; user-select:none }
+  .codewrap input { border:0; padding-left:0; flex:1; min-width:0 }
   .redeem input.small { font-size:clamp(14px,2.6vw,18px); letter-spacing:.06em; text-transform:none; padding:12px 14px }
   .auth { display:grid; gap:10px; grid-template-columns:1fr; align-items:stretch }
   .ign-row { display:flex; gap:10px; align-items:center } .ign-row input { flex:1 }
@@ -145,7 +149,7 @@
   <section id="redeem">
     <h2>REDEEM A BOOK</h2>
     <div class="redeem">
-      <input id="code" placeholder="QLL-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" autocapitalize="characters">
+      <div class="codewrap"><span class="prefix">QLL-</span><input id="code" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>
       <div class="msg" id="msg">CHECKED AS YOU TYPE. NOTHING IS SPENT UNTIL YOU PRESS REDEEM.</div>
       <div class="auth" id="auth">
         <button id="btn-discord">SIGN IN WITH DISCORD TO REDEEM</button>
@@ -383,9 +387,8 @@ let checkTimer = null, lastChecked = '';
 $('#code').addEventListener('input', e => {
   // input mask: whatever is typed or pasted becomes QLL-XXXXX-XXXXX-XXXXX-XXXXX with the dashes placed for you
   const el = $('#code'); let raw = el.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  let body = raw.startsWith('QLL') ? raw.slice(3) : raw; body = body.slice(0, 20);
-  const deleting = e.inputType && e.inputType.startsWith('delete');
-  el.value = body ? 'QLL-' + body.match(/.{1,5}/g).join('-') : (raw.startsWith('QLL') && !deleting ? 'QLL-' : '');
+  let body = (raw.startsWith('QLL') && raw.length > 3 ? raw.slice(3) : raw).slice(0, 20);   // a pasted full code loses its prefix, the field already shows it
+  el.value = body ? body.match(/.{1,5}/g).join('-') : '';
   el.setSelectionRange(el.value.length, el.value.length);
   clearTimeout(checkTimer);
   const code = 'QLL-' + norm($('#code').value);
