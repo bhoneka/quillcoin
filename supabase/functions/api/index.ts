@@ -36,6 +36,19 @@ async function limited(req: Request, cls: string, max: number): Promise<boolean>
   if (error) { console.error("rate", error.message); return false; }
   return data === true;
 }
+/** The hider tool encrypts the chest position with AES-256-GCM under SHA-256("quillcoin-loc:" + code). Only the code opens it. */
+async function openLoc(code: string, b64: string): Promise<{ x: number; y: number; z: number } | null> {
+  try {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    if (bytes.length < 12 + 16 + 1) return null;
+    const raw = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("quillcoin-loc:" + code));
+    const key = await crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["decrypt"]);
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.slice(0, 12) }, key, bytes.slice(12));
+    const j = JSON.parse(new TextDecoder().decode(pt));
+    if (![j.x, j.y, j.z].every((v: unknown) => Number.isInteger(v))) return null;
+    return { x: j.x, y: j.y, z: j.z };
+  } catch { return null; }
+}
 function sameSecret(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let r = 0;
@@ -75,7 +88,7 @@ async function board(round: number) {
   const { data: r } = await admin.from("rounds").select("id, opened_at, closed_at, note").eq("id", round).maybeSingle();
   if (!r) return json(404, { ok: false, message: "no such round" });
   const { data: coins, error } = await admin.from("coins")
-    .select("number, hash, hidden_at, blind, server, found_at, found_ign, found_name").eq("round", round).order("number");
+    .select("number, hash, hidden_at, blind, server, found_at, found_ign, found_name, found_x, found_y, found_z").eq("round", round).order("number");
   if (error) throw error;
   const list = coins ?? [];
   return json(200, { ok: true, round: r, coins: list, hidden: list.length, found: list.filter((c) => c.found_at).length });
@@ -111,6 +124,7 @@ async function hide(req: Request) {
   const hash = String(b.hash ?? "").toLowerCase();
   const server = typeof b.server === "string" ? b.server.toLowerCase().slice(0, 64) : null;
   const blind = b.blind === true || b.blind === 1 || b.blind === "1";
+  const loc = typeof b.loc === "string" && /^[A-Za-z0-9+/=]{40,400}$/.test(b.loc) ? b.loc : null;
   if (!Number.isInteger(round) || round < 0 || !Number.isInteger(number) || number < 1 || !/^[0-9a-f]{64}$/.test(hash) || !Number.isFinite(ts)) {
     return json(400, { ok: false, message: "bad fields" });
   }
@@ -122,12 +136,15 @@ async function hide(req: Request) {
   if (round > 0 && r.opened_at && new Date(r.opened_at) <= new Date()) {
     return json(409, { ok: false, message: "round already open - nothing can be added" });
   }
-  const { error } = await admin.from("coins").insert({ round, number, hash, hidden_at: new Date(ts * 1000).toISOString(), blind, server });
+  const { error } = await admin.from("coins").insert({ round, number, hash, hidden_at: new Date(ts * 1000).toISOString(), blind, server, loc_enc: loc });
   if (error) {
     if (error.code === "23505") {
       // same hash posted twice (a retry) is fine; a different hash on a used number is not
-      const { data: ex } = await admin.from("coins").select("hash").eq("round", round).eq("number", number).maybeSingle();
-      if (ex?.hash === hash) return json(200, { ok: true, message: "already on the board" });
+      const { data: ex } = await admin.from("coins").select("hash, loc_enc").eq("round", round).eq("number", number).maybeSingle();
+      if (ex?.hash === hash) {
+        if (loc && !ex.loc_enc) await admin.from("coins").update({ loc_enc: loc }).eq("hash", hash);   // a retry that finally carries the position
+        return json(200, { ok: true, message: "already on the board" });
+      }
       return json(409, { ok: false, message: "number or hash already used" });
     }
     throw error;
@@ -175,6 +192,12 @@ async function redeem(req: Request) {
     throw error;
   }
   const row = Array.isArray(data) ? data[0] : data;
+  // the code just proved itself: it can now open the chest position for the map
+  const { data: coin } = await admin.from("coins").select("loc_enc").eq("hash", hash).maybeSingle();
+  if (coin?.loc_enc) {
+    const at = await openLoc(code, coin.loc_enc);
+    if (at) await admin.from("coins").update({ found_x: at.x, found_y: at.y, found_z: at.z }).eq("hash", hash);
+  }
   announce(row.round, row.number, ign || discordName).catch((e) => console.error("webhook", e));
   return json(200, { ok: true, round: row.round, number: row.number, message: `R${row.round} coin ${row.number} is yours. 1 QLL minted to you, 0.1 to the founder wallet` });
 }
