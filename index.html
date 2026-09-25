@@ -3,108 +3,137 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QuillCoin</title>
-<meta name="description" content="Signed books hidden in 2b2t dungeon chests. Find one, redeem the code, own a QuillCoin.">
+<title>QUILLCOIN</title>
+<meta name="description" content="Signed books hidden in 2b2t dungeon chests. Find one. Redeem the code. Own a coin.">
 <style>
-  :root { --bg:#0e0d0b; --panel:#17150f; --ink:#f1e9d2; --dim:#9a8f74; --gold:#e6c85a; --line:#2a2618; --found:#6fbf73; --grey:#3a362b; }
-  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg:#f7f1df; --panel:#fffaf0; --ink:#1d1a12; --dim:#6b6249; --gold:#8a6d00; --line:#e2d8bc; --found:#2e8b3a; --grey:#d9d1b8; } }
-  * { box-sizing:border-box }
-  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
-  main { max-width:760px; margin:0 auto; padding:48px 16px 96px; }
-  h1 { font-size:40px; margin:0 0 4px; letter-spacing:-1px } h1 span { color:var(--gold) }
-  .tag { color:var(--dim); margin:0 0 40px }
-  h2 { font-size:15px; text-transform:uppercase; letter-spacing:2px; color:var(--dim); margin:48px 0 12px }
-  p { margin:0 0 12px }
-  .steps { counter-reset:s; padding:0; margin:0; list-style:none }
-  .steps li { counter-increment:s; padding:10px 0 10px 40px; position:relative; border-top:1px solid var(--line) }
-  .steps li::before { content:counter(s); position:absolute; left:0; top:10px; width:26px; height:26px; border:1px solid var(--gold); color:var(--gold); border-radius:50%; text-align:center; line-height:24px; font-size:13px }
-  .redeem { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px }
-  .redeem input { width:100%; font:inherit; font-size:20px; letter-spacing:2px; padding:14px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); text-transform:uppercase }
-  .row { display:flex; gap:10px; margin-top:10px; flex-wrap:wrap }
-  button { font:inherit; padding:12px 18px; border-radius:8px; border:0; cursor:pointer; background:var(--gold); color:#1a1500; font-weight:700 }
-  button.ghost { background:transparent; color:var(--ink); border:1px solid var(--line) }
-  .msg { min-height:24px; margin-top:12px; color:var(--dim) }
-  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0 18px }
-  .stat { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center }
-  .stat b { display:block; font-size:26px; color:var(--gold) } .stat span { color:var(--dim); font-size:13px }
-  .board { display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:8px }
-  .coin { border-radius:10px; padding:10px; border:1px solid var(--line); background:var(--grey); color:var(--dim); min-height:74px; font-size:13px }
-  .coin.found { background:var(--panel); border-color:var(--found); color:var(--ink) }
-  .coin .n { font-weight:700; font-size:15px; display:block } .coin.found .n { color:var(--found) }
-  .coin small { display:block; color:var(--dim); margin-top:4px }
-  footer { margin-top:64px; color:var(--dim); font-size:13px; border-top:1px solid var(--line); padding-top:16px }
-  a { color:var(--gold) }
+  :root { --bg:#000; --ink:#fff; --dim:#6b6b6b; --line:#2a2a2a; --hot:#ffd400; --found:#1aff5c; }
+  * { box-sizing:border-box; margin:0; padding:0 }
+  html,body { background:var(--bg); color:var(--ink) }
+  body { font-family: ui-monospace, "SF Mono", Menlo, "Courier New", monospace; text-transform:uppercase; letter-spacing:.02em; -webkit-font-smoothing:antialiased }
+  a { color:inherit; text-decoration:none }
+  .bar { position:sticky; top:0; z-index:5; display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--bg); border-bottom:1px solid var(--line); font-size:14px }
+  .bar .r { display:flex; gap:18px }
+  .bar .badge { background:var(--hot); color:#000; padding:2px 6px; font-weight:700 }
+  main { padding:0 16px 120px }
+  section { border-bottom:1px solid var(--line); padding:26px 0 }
+  h1 { font-size:clamp(34px, 9vw, 96px); line-height:.95; font-weight:700; letter-spacing:-.02em }
+  h1 small { display:block; font-size:clamp(14px,2.2vw,18px); letter-spacing:.06em; color:var(--dim); margin-top:14px; font-weight:400 }
+  h2 { font-size:12px; color:var(--dim); letter-spacing:.14em; margin-bottom:16px }
+  .list { list-style:none }
+  .list li { display:grid; grid-template-columns:40px 1fr auto; gap:14px; align-items:baseline; padding:7px 0; font-size:clamp(18px,3.4vw,30px); line-height:1.15; border-top:1px solid var(--line) }
+  .list li:first-child { border-top:0 }
+  .list .n { font-size:11px; color:var(--dim); letter-spacing:.1em }
+  .list .s { font-size:11px; letter-spacing:.1em; color:var(--dim); white-space:nowrap }
+  .list li.found .s { color:var(--found) }
+  .list li.out { color:var(--dim) }
+  .list li.out .name::after { content:" ▮"; animation:blink 1.2s steps(1) infinite }
+  @keyframes blink { 50% { opacity:0 } }
+  .redeem { display:grid; gap:12px; max-width:760px }
+  .redeem input { width:100%; background:#000; color:#fff; border:2px solid #fff; padding:18px 16px; font:inherit; font-size:clamp(18px,4vw,28px); letter-spacing:.12em; text-transform:uppercase; outline:0 }
+  .redeem input:focus { border-color:var(--hot) }
+  .row { display:flex; gap:10px; flex-wrap:wrap }
+  button { font:inherit; text-transform:uppercase; letter-spacing:.08em; padding:14px 20px; border:2px solid #fff; background:#fff; color:#000; cursor:pointer; font-weight:700 }
+  button.ghost { background:#000; color:#fff }
+  button:hover { background:var(--hot); border-color:var(--hot); color:#000 }
+  .msg { min-height:20px; font-size:13px; color:var(--dim) }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); border:1px solid var(--line); margin-bottom:22px }
+  .stat { padding:14px; border-right:1px solid var(--line) } .stat:last-child { border-right:0 }
+  .stat b { display:block; font-size:clamp(28px,6vw,56px); line-height:1 } .stat span { font-size:11px; color:var(--dim); letter-spacing:.12em }
+  .steps { list-style:none; counter-reset:s }
+  .steps li { counter-increment:s; display:grid; grid-template-columns:40px 1fr; gap:14px; padding:10px 0; border-top:1px solid var(--line); font-size:clamp(14px,2.4vw,20px); line-height:1.35; text-transform:none }
+  .steps li::before { content:"0" counter(s); font-size:11px; color:var(--dim); letter-spacing:.1em; padding-top:6px }
+  .rules p { text-transform:none; max-width:760px; font-size:15px; line-height:1.5; color:#cfcfcf; margin-bottom:10px }
+  .rules b { color:#fff }
+  footer { padding:26px 0; font-size:11px; color:var(--dim); letter-spacing:.12em; display:flex; gap:22px; flex-wrap:wrap }
+  footer a:hover { color:var(--hot) }
+  @media (max-width:600px){ .list li { grid-template-columns:32px 1fr } .list .s { grid-column:2; } }
 </style>
 </head>
 <body>
-<main>
-  <h1><span>Quill</span>Coin</h1>
-  <p class="tag">Signed books hidden in dungeon chests across 2b2t. Find one, redeem the code, own a coin.</p>
-
-  <section class="redeem" id="redeem">
-    <h2 style="margin-top:0">Redeem a book</h2>
-    <input id="code" placeholder="QLL-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false">
-    <div class="row">
-      <button id="btn-redeem">Redeem</button>
-      <button class="ghost" id="btn-check">Just check it</button>
-    </div>
-    <div class="msg" id="msg"></div>
+<div class="bar">
+  <a href="#top">QUILLCOIN</a>
+  <div class="r"><a href="#redeem">REDEEM↗</a><a href="#coins">COINS</a><span class="badge" id="badge">R1</span></div>
+</div>
+<main id="top">
+  <section>
+    <h1>SIGNED BOOKS<br>HIDDEN IN 2B2T<br>DUNGEON CHESTS.<small>Find one. Redeem the code. Own a coin. No hints. No map. Nobody — not even the hider — knows where they are.</small></h1>
   </section>
 
-  <h2>How it works</h2>
-  <ol class="steps">
-    <li>Somewhere on 2b2t, in an ordinary dungeon chest, there is a written book signed by <b>QuillCoin</b>. Its first page is a code.</li>
-    <li>Whoever finds the book takes it. It is a bearer item: whoever holds it, holds the coin.</li>
-    <li>Type the code here. First redemption wins; the book is then spent and becomes a souvenir.</li>
-    <li>You get one QuillCoin on your ledger. The board below shows every coin the moment it is found.</li>
-  </ol>
-  <p>There are no hints. Nobody knows where the books are — the tool that hides them never shows the code or the coordinates to the person hiding, and every coin's hash is published here <em>before</em> anyone hunts for it, so none can be added later. The hider's own accounts cannot redeem.</p>
+  <section id="redeem">
+    <h2>REDEEM A BOOK</h2>
+    <div class="redeem">
+      <input id="code" placeholder="QLL-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" autocapitalize="characters">
+      <div class="row"><button id="btn-redeem">REDEEM</button><button class="ghost" id="btn-check">JUST CHECK</button></div>
+      <div class="msg" id="msg"></div>
+    </div>
+  </section>
 
-  <h2>Round 1</h2>
-  <div class="stats">
-    <div class="stat"><b id="s-hidden">–</b><span>hidden</span></div>
-    <div class="stat"><b id="s-found">–</b><span>found</span></div>
-    <div class="stat"><b id="s-last">–</b><span>since last find</span></div>
-  </div>
-  <div class="board" id="board"></div>
+  <section id="coins">
+    <h2>ROUND 1</h2>
+    <div class="stats">
+      <div class="stat"><b id="s-hidden">–</b><span>HIDDEN</span></div>
+      <div class="stat"><b id="s-found">–</b><span>FOUND</span></div>
+      <div class="stat"><b id="s-last">–</b><span>SINCE LAST FIND</span></div>
+    </div>
+    <ol class="list" id="board"><li class="out"><span class="n">#</span><span class="name">LOADING</span><span class="s"></span></li></ol>
+  </section>
 
-  <h2>Rules</h2>
-  <p>Coins only exist when they are found. Each redemption mints 1 coin to the finder and 0.1 to a public founder wallet — that fee is the founder's only income, and it is visible from the first coin. No presale, nothing is ever sold by the founder, and no price is promised: this is a game reward. If people trade it, that is their doing.</p>
+  <section>
+    <h2>HOW IT WORKS</h2>
+    <ol class="steps">
+      <li>Somewhere on 2b2t, in an ordinary dungeon chest, sits a written book signed by <b>QuillCoin</b>. Page one is a code.</li>
+      <li>Whoever holds the book holds the coin. Take it. Loot it off someone. It's a bearer item.</li>
+      <li>Type the code above. First redemption wins. The book is then spent — a souvenir with a public record of who cashed it.</li>
+      <li>You get one QuillCoin. The list above changes the moment it happens.</li>
+    </ol>
+  </section>
+
+  <section class="rules">
+    <h2>RULES</h2>
+    <p><b>No hints.</b> The tool that hides the books never shows the hider the code or the coordinates: it picks a random point, flies there blind, and the first dungeon it sees is the one. The hider's own accounts can never redeem.</p>
+    <p><b>Committed before the hunt.</b> Every coin's hash is published here, timestamped, before anyone looks. Nothing can be added later.</p>
+    <p><b>Coins only exist when found.</b> Each redemption mints 1 to the finder and 0.1 to a public founder wallet. That fee is the founder's only income, visible from the first coin. No presale. Nothing is sold by the founder. No price is promised — this is a game reward; if people trade it, that's theirs.</p>
+    <p><b>Burned coins stay burned.</b> A book destroyed in a chest never mints. Greyed entries might be gone. That's the hunt.</p>
+  </section>
 
   <footer>
-    Hash list: <a id="hashlink" href="api/coins.json">coins.json</a> · Hider tool source: <a href="#">github</a> · Ledger: <a href="#">public</a>
+    <a href="api/coins.json">HASH LIST</a>
+    <a href="https://github.com/josefabregas/quillcoin-hider">HIDER SOURCE</a>
+    <a href="#">LEDGER</a>
+    <span>2B2T.ORG · NOT AFFILIATED</span>
   </footer>
 </main>
 <script>
-const API = (window.QUILL_API || '') ;                       // set to the Supabase edge function base when it exists
+const API = window.QUILL_API || '';
 const $ = s => document.querySelector(s);
-function since(ts){ if(!ts) return '–'; const d=(Date.now()/1000-ts); if(d<3600) return Math.floor(d/60)+'m'; if(d<86400) return Math.floor(d/3600)+'h'; return Math.floor(d/86400)+'d'; }
+const since = ts => { if(!ts) return '–'; const d = Date.now()/1000 - ts; return d<3600 ? Math.floor(d/60)+'M' : d<86400 ? Math.floor(d/3600)+'H' : Math.floor(d/86400)+'D'; };
 async function loadBoard(){
   try {
-    const r = await fetch((API? API+'/board?round=1' : 'api/coins.json'), {cache:'no-store'});
+    const r = await fetch(API ? API+'/board?round=1' : 'api/coins.json', {cache:'no-store'});
     const coins = await r.json();
-    const found = coins.filter(c=>c.found_by);
+    const found = coins.filter(c => c.found_by);
     $('#s-hidden').textContent = coins.length; $('#s-found').textContent = found.length;
-    $('#s-last').textContent = since(Math.max(0, ...found.map(c=>c.found_at||0)));
-    const b=$('#board'); b.innerHTML='';
-    coins.sort((a,b)=>a.number-b.number).forEach(c=>{
-      const d=document.createElement('div'); d.className='coin'+(c.found_by?' found':'');
-      d.innerHTML = `<span class="n">Coin ${c.number}</span>` + (c.found_by ? `${c.found_by}<small>${new Date(c.found_at*1000).toLocaleDateString()}</small>` : `<small>still out there</small>`);
-      b.appendChild(d);
+    $('#s-last').textContent = since(Math.max(0, ...found.map(c => c.found_at||0)));
+    const b = $('#board'); b.innerHTML = '';
+    if (!coins.length) { b.innerHTML = '<li class="out"><span class="n">#</span><span class="name">NOTHING HIDDEN YET</span><span class="s"></span></li>'; return; }
+    coins.sort((a,b) => a.number - b.number).forEach((c,i) => {
+      const li = document.createElement('li'); li.className = c.found_by ? 'found' : 'out';
+      li.innerHTML = `<span class="n">#${String(i+1).padStart(3,'0')}</span><span class="name">COIN ${c.number}</span><span class="s">${c.found_by ? 'FOUND · '+c.found_by.toUpperCase()+' · '+new Date(c.found_at*1000).toLocaleDateString() : 'STILL OUT THERE'}</span>`;
+      b.appendChild(li);
     });
-  } catch(e) { $('#board').textContent = 'Board unavailable.'; }
+  } catch(e) { $('#board').innerHTML = '<li class="out"><span class="n">#</span><span class="name">BOARD UNAVAILABLE</span><span class="s"></span></li>'; }
 }
-function norm(v){ return v.toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^QLL/,'').replace(/(.{5})/g,'$1-').replace(/-$/,''); }
+const norm = v => v.toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^QLL/,'').replace(/(.{5})/g,'$1-').replace(/-$/,'');
 async function send(path){
-  const code = 'QLL-'+norm($('#code').value);
-  if (code.length < 27) { $('#msg').textContent='That is not a full code.'; return; }
-  if (!API) { $('#msg').textContent='Redemption opens when round 1 starts.'; return; }
-  $('#msg').textContent='…';
-  try { const r = await fetch(API+path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code})}); const j = await r.json(); $('#msg').textContent = j.message || JSON.stringify(j); if (j.ok) loadBoard(); }
-  catch(e){ $('#msg').textContent='Could not reach the server.'; }
+  const code = 'QLL-' + norm($('#code').value);
+  if (code.length < 27) { $('#msg').textContent = 'THAT IS NOT A FULL CODE.'; return; }
+  if (!API) { $('#msg').textContent = 'REDEMPTION OPENS WHEN ROUND 1 STARTS.'; return; }
+  $('#msg').textContent = '…';
+  try { const r = await fetch(API+path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code})}); const j = await r.json(); $('#msg').textContent = (j.message || JSON.stringify(j)).toUpperCase(); if (j.ok) loadBoard(); }
+  catch(e) { $('#msg').textContent = 'COULD NOT REACH THE SERVER.'; }
 }
-$('#btn-redeem').onclick = ()=>send('/redeem');
-$('#btn-check').onclick  = ()=>send('/check');
+$('#btn-redeem').onclick = () => send('/redeem');
+$('#btn-check').onclick  = () => send('/check');
 loadBoard();
 </script>
 </body>
