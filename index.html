@@ -99,7 +99,7 @@
   .redeem input.small { font-size:clamp(14px,2.6vw,18px); letter-spacing:.06em; text-transform:none; padding:12px 14px }
   .auth { display:grid; gap:10px; grid-template-columns:1fr; align-items:stretch }
   .ign-row { display:flex; gap:10px; align-items:center } .ign-row input { flex:1 }
-  .head { width:40px; height:40px; image-rendering:pixelated; border:1px solid var(--line); background:#000 }
+  .head { width:40px; height:40px; image-rendering:pixelated; border:1px solid var(--line); background:#000; transition:opacity .22s ease }
   .card .head { width:16px; height:16px; vertical-align:middle; margin-right:5px; border:0 }
   .auth .who { grid-column:1 / -1; font-size:12px; color:var(--dim); letter-spacing:.14em }
   .auth .who a { color:#fff; text-decoration:underline; cursor:pointer }
@@ -361,7 +361,16 @@ fetch(SB_URL + '/auth/v1/settings', { headers: { apikey: SB_ANON } }).then(r => 
   if (!(j && j.external && j.external.discord)) { const b = $('#btn-discord'); b.textContent = 'DISCORD SIGN-IN: SOON'; b.disabled = true; }
 }).catch(() => {});
 // live skin preview for the Minecraft name
-function showHead(){ const v = $('#ign').value.trim(), im = $('#ign-head'); if (validIgn(v)) { im.src = 'https://mc-heads.net/avatar/' + encodeURIComponent(v) + '/40'; im.hidden = false; } else im.hidden = true; }
+// the head slot is always there: it flips through 2b2t faces until you type your own name
+const HEADS = ['FitMC','popbob','Hausemaster','jared2013','SalC1','x0XP','Sato86','Offtopia','Armorsmith','Fr1kin','Coltsnid','Jaang','iTristan','xcc2','Willyq','Krobar01','Torogadude','0xymoron','Hermeticlock','Rusher'];
+let headTimer = null, headIdx = Math.floor(Math.random() * HEADS.length);
+const headUrl = n => 'https://mc-heads.net/avatar/' + encodeURIComponent(n) + '/40';
+function nextHead(){ const im = $('#ign-head'); im.style.opacity = '0'; setTimeout(() => { headIdx = (headIdx + 1 + Math.floor(Math.random() * 3)) % HEADS.length; im.src = headUrl(HEADS[headIdx]); im.style.opacity = ''; }, 220); }
+function showHead(){
+  const v = $('#ign').value.trim(), im = $('#ign-head'); im.hidden = false;
+  if (validIgn(v)) { clearInterval(headTimer); headTimer = null; im.src = headUrl(v); im.style.opacity = ''; return; }
+  if (!headTimer) { im.src = headUrl(HEADS[headIdx]); headTimer = setInterval(nextHead, 1300); }
+}
 $('#ign').addEventListener('input', showHead); showHead();
 const openIgn = () => { $('#btn-ign').hidden = true; $('#ign-row').hidden = false; };
 $('#btn-ign').onclick = () => { openIgn(); $('#ign').focus(); };
