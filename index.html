@@ -6,6 +6,7 @@
 <title>QUILLCOIN</title>
 <meta name="description" content="Signed books hidden in 2b2t dungeon chests. Find one. Redeem the code. Own a coin.">
 <style>
+  @font-face { font-family: "Monocraft"; src: url("fonts/Monocraft.ttf") format("truetype"); font-display: swap; }
   :root { --bg:#000; --ink:#fff; --dim:#6b6b6b; --line:#2a2a2a; --hot:#ffd400; --found:#1aff5c; }
   * { box-sizing:border-box; margin:0; padding:0 }
   html,body { background:var(--bg); color:var(--ink) }
@@ -16,7 +17,15 @@
   .bar .badge { background:var(--hot); color:#000; padding:2px 6px; font-weight:700 }
   main { padding:0 16px 120px }
   section { border-bottom:1px solid var(--line); padding:26px 0 }
-  h1 { font-size:clamp(34px, 9vw, 96px); line-height:.95; font-weight:700; letter-spacing:-.02em }
+  h1 { font-family:"Monocraft", ui-monospace, monospace; font-size:clamp(30px, 8vw, 84px); line-height:1.05; font-weight:400; letter-spacing:0;
+       background:linear-gradient(90deg,#ff5555,#ffaa00,#ffff55,#55ff55,#55ffff,#5555ff,#ff55ff,#ff5555); background-size:400% 100%;
+       -webkit-background-clip:text; background-clip:text; color:transparent; animation:rainbow 12s linear infinite }
+  @keyframes rainbow { to { background-position:400% 0 } }
+  h1 small { -webkit-text-fill-color:var(--dim); color:var(--dim); background:none; font-family:ui-monospace, monospace }
+  .books { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden }
+  .books svg { position:absolute; width:56px; height:56px; opacity:.16; image-rendering:pixelated; animation:drift var(--t,26s) ease-in-out infinite alternate; }
+  @keyframes drift { from { transform:translate(0,0) rotate(-8deg) } to { transform:translate(var(--dx,40px),var(--dy,-60px)) rotate(10deg) } }
+  .bar, main { position:relative; z-index:1 }
   h1 small { display:block; font-size:clamp(14px,2.2vw,18px); letter-spacing:.06em; color:var(--dim); margin-top:14px; font-weight:400 }
   h2 { font-size:12px; color:var(--dim); letter-spacing:.14em; margin-bottom:16px }
   .list { list-style:none }
@@ -31,6 +40,12 @@
   .redeem { display:grid; gap:12px; max-width:760px }
   .redeem input { width:100%; background:#000; color:#fff; border:2px solid #fff; padding:18px 16px; font:inherit; font-size:clamp(18px,4vw,28px); letter-spacing:.12em; text-transform:uppercase; outline:0 }
   .redeem input:focus { border-color:var(--hot) }
+  .redeem input.small { font-size:clamp(14px,2.6vw,18px); letter-spacing:.06em; text-transform:none; padding:12px 14px }
+  .auth { display:grid; gap:10px; grid-template-columns:1fr auto; align-items:stretch }
+  .auth .who { grid-column:1 / -1; font-size:12px; color:var(--dim); letter-spacing:.14em }
+  .auth .who a { color:#fff; text-decoration:underline; cursor:pointer }
+  .rstat { font-size:12px; letter-spacing:.16em; color:var(--dim); margin:-10px 0 18px }
+  .list .h { font-size:10px; color:var(--dim); letter-spacing:.06em; text-transform:none; word-break:break-all }
   .row { display:flex; gap:10px; flex-wrap:wrap }
   button { font:inherit; text-transform:uppercase; letter-spacing:.08em; padding:14px 20px; border:2px solid #fff; background:#fff; color:#000; cursor:pointer; font-weight:700 }
   button.ghost { background:#000; color:#fff }
@@ -50,6 +65,7 @@
 </style>
 </head>
 <body>
+<div class="books" id="books" aria-hidden="true"></div>
 <div class="bar">
   <a href="#top">QUILLCOIN</a>
   <div class="r"><a href="#redeem">REDEEM↗</a><a href="#coins">COINS</a><span class="badge" id="badge">R1</span></div>
@@ -63,13 +79,20 @@
     <h2>REDEEM A BOOK</h2>
     <div class="redeem">
       <input id="code" placeholder="QLL-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" autocapitalize="characters">
+      <input id="ign" class="small" placeholder="YOUR MINECRAFT NAME - SHOWN ON THE BOARD WHEN YOU REDEEM" maxlength="16" autocomplete="off" spellcheck="false">
+      <div class="auth" id="auth">
+        <input id="email" class="small" type="email" placeholder="EMAIL - WE SEND A SIGN-IN LINK, NO PASSWORD" autocomplete="email">
+        <button class="ghost" id="btn-login">SEND LINK</button>
+        <div class="who" id="who">REDEEMING NEEDS A SIGN-IN SO THE COIN HAS AN OWNER. CHECKING DOES NOT.</div>
+      </div>
       <div class="row"><button id="btn-redeem">REDEEM</button><button class="ghost" id="btn-check">JUST CHECK</button></div>
       <div class="msg" id="msg"></div>
     </div>
   </section>
 
   <section id="coins">
-    <h2>ROUND 1</h2>
+    <h2 id="round-title">ROUND 1</h2>
+    <p class="rstat" id="round-status">…</p>
     <div class="stats">
       <div class="stat"><b id="s-hidden">–</b><span>HIDDEN</span></div>
       <div class="stat"><b id="s-found">–</b><span>FOUND</span></div>
@@ -97,39 +120,121 @@
   </section>
 
   <footer>
-    <a href="api/coins.json">HASH LIST</a>
-    <a href="https://github.com/josefabregas/quillcoin-hider">HIDER SOURCE</a>
-    <a href="#">LEDGER</a>
+    <a id="lnk-hashes" href="#">HASH LIST (JSON)</a>
+    <a id="lnk-ledger" href="#">LEDGER (JSON)</a>
+    <a href="https://github.com/quillcoin/quillcoin-hider">HIDER SOURCE</a>
+    <a href="?round=0">TEST ROUND</a>
     <span>2B2T.ORG · NOT AFFILIATED</span>
   </footer>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
 <script>
-const API = window.QUILL_API || '';
+// 16x16 pixel art, drawn as rects. "#" = ink, "." = paper, "q" = quill, " " = empty
+const QUILL = [
+"                ",
+"   ##########   ",
+"  #..........#  ",
+"  #..........#  ",
+"  #...####...#  ",
+"  #..........#  ",
+"  #...####...#  ",
+"  #..........#q ",
+"  #...####..qq  ",
+"  #........qq.  ",
+"  #.......qq.#  ",
+"  #......qq..#  ",
+"  #..........#  ",
+"  #..........#  ",
+"   ##########   ",
+"                "];
+const ENCH = [
+"                ",
+"   ##########   ",
+"  #..........#  ",
+"  #.#......#.#  ",
+"  #..........#  ",
+"  #...#..#...#  ",
+"  #..........#  ",
+"  #.#..##..#.#  ",
+"  #..........#  ",
+"  #...#..#...#  ",
+"  #..........#  ",
+"  #.#......#.#  ",
+"  #..........#  ",
+"  #..........#  ",
+"   ##########   ",
+"                "];
+function bookSVG(rows, ink, paper){
+  let r='';
+  rows.forEach((row,y)=>{ for(let x=0;x<16;x++){ const c=row[x]; if(c===' ') continue; const f = c==='#'||c==='q' ? ink : paper; r+=`<rect x="${x}" y="${y}" width="1" height="1" fill="${f}"/>`; } });
+  return `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">${r}</svg>`;
+}
+(function(){
+  const host=document.getElementById('books'); if(!host) return;
+  const variants=[[QUILL,'#fff','#000'],[QUILL,'#000','#fff'],[ENCH,'#fff','#000'],[ENCH,'#000','#fff']];
+  for(let i=0;i<18;i++){
+    const [rows,ink,paper]=variants[i%4];
+    const w=document.createElement('div'); w.innerHTML=bookSVG(rows,ink,paper); const svg=w.firstChild;
+    svg.style.left=(Math.random()*100)+'vw'; svg.style.top=(Math.random()*100)+'vh';
+    svg.style.setProperty('--t',(18+Math.random()*22)+'s'); svg.style.setProperty('--dx',((Math.random()-.5)*160)+'px'); svg.style.setProperty('--dy',((Math.random()-.5)*160)+'px');
+    svg.style.animationDelay=(-Math.random()*20)+'s';
+    host.appendChild(svg);
+  }
+})();
+const SB_URL = 'https://ovjeipprgkeygnlkraiu.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92amVpcHByZ2tleWdubGtyYWl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzMDk5NjksImV4cCI6MjEwNTg4NTk2OX0.5q95unvkFe2c1GBP91ztz44ejBX_2AnxQjYk0mxtcPQ';   // public anon key: it can only read the public board
+const API = SB_URL + '/functions/v1/api';
+const ROUND = Math.max(0, parseInt(new URLSearchParams(location.search).get('round') || '1', 10) || 0);
 const $ = s => document.querySelector(s);
-const since = ts => { if(!ts) return '–'; const d = Date.now()/1000 - ts; return d<3600 ? Math.floor(d/60)+'M' : d<86400 ? Math.floor(d/3600)+'H' : Math.floor(d/86400)+'D'; };
+const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_ANON) : null;
+$('#lnk-hashes').href = API + '/board?round=' + ROUND; $('#lnk-ledger').href = API + '/ledger';
+$('#badge').textContent = 'R' + ROUND; $('#round-title').textContent = ROUND === 0 ? 'TEST ROUND' : 'ROUND ' + ROUND;
+const since = iso => { if(!iso) return '–'; const d = (Date.now() - Date.parse(iso))/1000; return d<3600 ? Math.floor(d/60)+'M' : d<86400 ? Math.floor(d/3600)+'H' : Math.floor(d/86400)+'D'; };
+const day = iso => new Date(iso).toISOString().slice(0,10);
 async function loadBoard(){
   try {
-    const r = await fetch(API ? API+'/board?round=1' : 'api/coins.json', {cache:'no-store'});
-    const coins = await r.json();
-    const found = coins.filter(c => c.found_by);
+    const r = await fetch(API + '/board?round=' + ROUND, {cache:'no-store'});
+    const j = await r.json(); if (!j.ok) throw new Error(j.message);
+    const coins = j.coins, found = coins.filter(c => c.found_at);
     $('#s-hidden').textContent = coins.length; $('#s-found').textContent = found.length;
-    $('#s-last').textContent = since(Math.max(0, ...found.map(c => c.found_at||0)));
+    $('#s-last').textContent = found.length ? since(found.map(c => c.found_at).sort().pop()) : '–';
+    const rd = j.round, open = rd.opened_at && Date.parse(rd.opened_at) <= Date.now() && !(rd.closed_at && Date.parse(rd.closed_at) <= Date.now());
+    $('#round-status').textContent = ROUND === 0 ? 'SINGLEPLAYER TEST HIDES · WORTHLESS · REDEEMABLE FOR TESTING'
+      : open ? 'OPEN SINCE ' + day(rd.opened_at) + ' · EVERY HASH BELOW WAS COMMITTED BEFORE THAT DAY'
+      : 'NOT OPEN YET · HASHES ARE BEING COMMITTED · NOTHING CAN BE REDEEMED UNTIL IT OPENS';
     const b = $('#board'); b.innerHTML = '';
     if (!coins.length) { b.innerHTML = '<li class="out"><span class="n">#</span><span class="name">NOTHING HIDDEN YET</span><span class="s"></span></li>'; return; }
-    coins.sort((a,b) => a.number - b.number).forEach((c,i) => {
-      const li = document.createElement('li'); li.className = c.found_by ? 'found' : 'out';
-      li.innerHTML = `<span class="n">#${String(i+1).padStart(3,'0')}</span><span class="name">COIN ${c.number}</span><span class="s">${c.found_by ? 'FOUND · '+c.found_by.toUpperCase()+' · '+new Date(c.found_at*1000).toLocaleDateString() : 'STILL OUT THERE'}</span>`;
+    coins.forEach((c,i) => {
+      const li = document.createElement('li'); li.className = c.found_at ? 'found' : 'out';
+      const st = c.found_at ? 'FOUND · ' + (c.found_ign || 'ANONYMOUS').toUpperCase() + ' · ' + day(c.found_at) : 'STILL OUT THERE · HIDDEN ' + day(c.hidden_at) + (c.blind ? ' · BLIND RUN' : '');
+      li.innerHTML = `<span class="n">#${String(i+1).padStart(3,'0')}</span><span class="name">COIN ${c.number}<div class="h">${c.hash}</div></span><span class="s">${st}</span>`;
       b.appendChild(li);
     });
-  } catch(e) { $('#board').innerHTML = '<li class="out"><span class="n">#</span><span class="name">BOARD UNAVAILABLE</span><span class="s"></span></li>'; }
+  } catch(e) { $('#board').innerHTML = '<li class="out"><span class="n">#</span><span class="name">BOARD UNAVAILABLE</span><span class="s"></span></li>'; $('#round-status').textContent = ''; }
 }
 const norm = v => v.toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^QLL/,'').replace(/(.{5})/g,'$1-').replace(/-$/,'');
+let session = null;
+function showAuth(){
+  const who = $('#who'), em = $('#email'), bl = $('#btn-login');
+  if (session) { em.style.display = 'none'; bl.style.display = 'none'; who.innerHTML = 'SIGNED IN AS ' + session.user.email.toUpperCase() + ' · <a id="logout">SIGN OUT</a>'; $('#logout').onclick = () => sb.auth.signOut(); }
+  else { em.style.display = ''; bl.style.display = ''; who.textContent = 'REDEEMING NEEDS A SIGN-IN SO THE COIN HAS AN OWNER. CHECKING DOES NOT.'; }
+}
+if (sb) { sb.auth.getSession().then(({data}) => { session = data.session; showAuth(); }); sb.auth.onAuthStateChange((_e, s) => { session = s; showAuth(); }); }
+try { $('#ign').value = localStorage.getItem('qll-ign') || ''; } catch(e) {}
+$('#btn-login').onclick = async () => {
+  const email = $('#email').value.trim(); if (!email.includes('@')) { $('#msg').textContent = 'THAT IS NOT AN EMAIL.'; return; }
+  $('#msg').textContent = '…';
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+  $('#msg').textContent = error ? ('COULD NOT SEND: ' + error.message).toUpperCase() : 'LINK SENT. OPEN IT ON THIS DEVICE, THEN REDEEM.';
+};
 async function send(path){
   const code = 'QLL-' + norm($('#code').value);
   if (code.length < 27) { $('#msg').textContent = 'THAT IS NOT A FULL CODE.'; return; }
-  if (!API) { $('#msg').textContent = 'REDEMPTION OPENS WHEN ROUND 1 STARTS.'; return; }
+  const headers = {'Content-Type':'application/json'};
+  if (path === '/redeem') { if (!session) { $('#msg').textContent = 'SIGN IN FIRST - SEND YOURSELF THE LINK ABOVE.'; return; } headers['Authorization'] = 'Bearer ' + session.access_token; }
+  const ign = $('#ign').value.trim(); try { localStorage.setItem('qll-ign', ign); } catch(e) {}
   $('#msg').textContent = '…';
-  try { const r = await fetch(API+path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code})}); const j = await r.json(); $('#msg').textContent = (j.message || JSON.stringify(j)).toUpperCase(); if (j.ok) loadBoard(); }
+  try { const r = await fetch(API+path, {method:'POST', headers, body:JSON.stringify({code, ign})}); const j = await r.json(); $('#msg').textContent = (j.message || JSON.stringify(j)).toUpperCase(); if (j.ok && path === '/redeem') loadBoard(); }
   catch(e) { $('#msg').textContent = 'COULD NOT REACH THE SERVER.'; }
 }
 $('#btn-redeem').onclick = () => send('/redeem');
