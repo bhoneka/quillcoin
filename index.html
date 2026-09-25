@@ -4,9 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QUILLCOIN</title>
-<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="mask-icon" href="mask-icon.svg" color="#ffd400">
+<link rel="canonical" href="https://quillcoin.gg/">
+<meta name="theme-color" content="#000000">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://quillcoin.gg/">
+<meta property="og:title" content="QuillCoin">
+<meta property="og:description" content="Signed books hidden in 2b2t dungeon chests. Find one. Redeem the code. Own a coin.">
+<meta property="og:image" content="https://quillcoin.gg/og.png">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="description" content="Signed books hidden in 2b2t dungeon chests. Find one. Redeem the code. Own a coin.">
 <style>
   @font-face { font-family: "Monocraft"; src: url("fonts/Monocraft.ttf") format("truetype"); font-display: swap; }
@@ -23,25 +34,24 @@
   h1 { font-family:"Monocraft", ui-monospace, monospace; font-size:clamp(30px, 8vw, 84px); line-height:1.05; font-weight:400; letter-spacing:0; color:var(--hot) }
   h1 small { color:var(--dim); font-family:ui-monospace, monospace }
   .bar .brand { display:flex; align-items:center; gap:9px }
-  .bar .logo { width:22px; height:22px; display:block }
-  .bar .logo svg { width:100%; height:100%; display:block; image-rendering:pixelated }
-  .books { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden }
-  .books svg { position:absolute; width:var(--s,32px); height:var(--s,32px); opacity:var(--o,.1); image-rendering:pixelated; animation:drift var(--t,26s) ease-in-out infinite alternate; }
+  .bar .logo { width:22px; height:22px; display:block; image-rendering:pixelated }
+  body::before { content:""; position:fixed; inset:0; z-index:0; pointer-events:none; background:url(map.jpg) center / cover no-repeat; opacity:.2; filter:grayscale(1) }
   [hidden] { display:none !important }
   button:disabled { opacity:.35; cursor:default }
-  @keyframes drift { from { transform:translate(0,0) rotate(-8deg) } to { transform:translate(var(--dx,40px),var(--dy,-60px)) rotate(10deg) } }
   .bar, main { position:relative; z-index:1 }
   h1 small { display:block; font-size:clamp(14px,2.2vw,18px); letter-spacing:.06em; color:var(--dim); margin-top:14px; font-weight:400 }
   h2 { font-size:12px; color:var(--dim); letter-spacing:.14em; margin-bottom:16px }
-  .list { list-style:none }
-  .list li { display:grid; grid-template-columns:40px 1fr auto; gap:14px; align-items:baseline; padding:7px 0; font-size:clamp(18px,3.4vw,30px); line-height:1.15; border-top:1px solid var(--line) }
-  .list li:first-child { border-top:0 }
-  .list .n { font-size:11px; color:var(--dim); letter-spacing:.1em }
-  .list .s { font-size:11px; letter-spacing:.1em; color:var(--dim); white-space:nowrap }
-  .list li.found .s { color:var(--found) }
-  .list li.out { color:var(--dim) }
-  .list li.out .name::after { content:" ▮"; animation:blink 1.2s steps(1) infinite }
-  @keyframes blink { 50% { opacity:0 } }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px }
+  .card { aspect-ratio:1; border:1px solid var(--line); padding:12px; display:flex; flex-direction:column; justify-content:space-between; background:rgba(0,0,0,.55); min-width:0 }
+  .card img { width:38%; max-width:64px; image-rendering:pixelated; align-self:flex-end }
+  .card b { display:block; font-size:clamp(16px,2.4vw,22px); line-height:1.1; margin-top:auto }
+  .card span { font-size:10px; letter-spacing:.08em; color:var(--dim); line-height:1.4 }
+  .card i { font-style:normal; font-size:9px; color:var(--dim); text-transform:none; letter-spacing:0 }
+  .card.out { color:var(--dim) }
+  .card.found { border-color:var(--found) } .card.found span { color:var(--found) }
+  .card.empty { justify-content:center; align-items:center; color:var(--dim); font-size:12px; letter-spacing:.14em }
+  .grid.mine { grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); grid-column:1 / -1 }
+  .grid.mine .card { padding:9px } .grid.mine .card b { font-size:14px }
   .redeem { display:grid; gap:12px; max-width:760px }
   .redeem input { width:100%; background:#000; color:#fff; border:2px solid #fff; padding:18px 16px; font:inherit; font-size:clamp(18px,4vw,28px); letter-spacing:.12em; text-transform:uppercase; outline:0 }
   .redeem input:focus { border-color:var(--hot) }
@@ -50,7 +60,6 @@
   .auth .who { grid-column:1 / -1; font-size:12px; color:var(--dim); letter-spacing:.14em }
   .auth .who a { color:#fff; text-decoration:underline; cursor:pointer }
   .rstat { font-size:12px; letter-spacing:.16em; color:var(--dim); margin:-10px 0 18px }
-  .list .h { font-size:10px; color:var(--dim); letter-spacing:.06em; text-transform:none; word-break:break-all }
   .row { display:flex; gap:10px; flex-wrap:wrap }
   button { font:inherit; text-transform:uppercase; letter-spacing:.08em; padding:14px 20px; border:2px solid #fff; background:#fff; color:#000; cursor:pointer; font-weight:700 }
   button.ghost { background:#000; color:#fff }
@@ -67,13 +76,12 @@
   .rules b { color:#fff }
   footer { padding:26px 0; font-size:11px; color:var(--dim); letter-spacing:.12em; display:flex; gap:22px; flex-wrap:wrap }
   footer a:hover { color:var(--hot) }
-  @media (max-width:600px){ .list li { grid-template-columns:32px 1fr } .list .s { grid-column:2; } }
+  @media (max-width:600px){ .grid { grid-template-columns:repeat(2, 1fr) } }
 </style>
 </head>
 <body>
-<div class="books" id="books" aria-hidden="true"></div>
 <div class="bar">
-  <a href="#top" class="brand"><span class="logo" id="logo"></span>QUILLCOIN</a>
+  <a href="#top" class="brand"><img class="logo" src="favicon.svg" alt="">QUILLCOIN</a>
   <div class="r"><a href="#redeem">REDEEM↗</a><a href="#coins">COINS</a><span class="badge" id="badge">R1</span></div>
 </div>
 <main id="top">
@@ -93,6 +101,7 @@
         <button class="ghost" id="btn-login" hidden>SEND LINK</button>
         <div class="who" id="who">REDEEMING NEEDS A SIGN-IN SO THE COIN HAS AN OWNER. CHECKING DOES NOT.</div>
         <div class="who" id="mine" hidden></div>
+        <div class="grid mine" id="mine-books" hidden></div>
       </div>
       <div class="row"><button id="btn-redeem">REDEEM</button><button class="ghost" id="btn-check">JUST CHECK</button></div>
       <div class="msg" id="msg"></div>
@@ -107,7 +116,7 @@
       <div class="stat"><b id="s-found">–</b><span>FOUND</span></div>
       <div class="stat"><b id="s-last">–</b><span>SINCE LAST FIND</span></div>
     </div>
-    <ol class="list" id="board"><li class="out"><span class="n">#</span><span class="name">LOADING</span><span class="s"></span></li></ol>
+    <div class="grid" id="board"><div class="card empty">LOADING</div></div>
   </section>
 
   <section>
@@ -128,6 +137,15 @@
     <p><b>Burned coins stay burned.</b> A book destroyed in a chest never mints. Greyed entries might be gone. That's the hunt.</p>
   </section>
 
+  <section class="rules" id="faq">
+    <h2>QUESTIONS</h2>
+    <p><b>Is the book in my hand real?</b> Hover it in-game: the author must read <b>QuillCoin</b>. Nobody else can sign a book as that account. Then type the code above and hit JUST CHECK. It answers real and unspent, spent, or unknown, without spending anything.</p>
+    <p><b>What do I get?</b> One QuillCoin on your account the moment you redeem, and your name on that coin's card for good. You keep the book. It's spent, but it's yours.</p>
+    <p><b>What is a QuillCoin worth?</b> Whatever people decide. Nothing is promised and nothing is sold by the founder. Round one is a ledger on this site; if it ever becomes a token, every balance here carries over.</p>
+    <p><b>Can the hider cheat?</b> The hiding tool is open source and never shows the hider a code or a coordinate. Every hash is committed before the round opens. The hider's own accounts are blacklisted. The source is linked in the footer.</p>
+    <p><b>Someone redeemed my code first.</b> Then they held the book, or read it, before you did. First redemption wins. Guard it like a shulker.</p>
+  </section>
+
   <footer>
     <a id="lnk-hashes" href="#">HASH LIST (JSON)</a>
     <a id="lnk-ledger" href="#">LEDGER (JSON)</a>
@@ -138,65 +156,12 @@
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
 <script>
-// 16x16 pixel art of the two items, drawn as rects. o outline, c cover, p pages, q quill, t nib, w label, . empty
-const BOOK_AND_QUILL = [
-"................",
-"............qq..",
-"...........qqq..",
-"..oooooooo.qqq..",
-".occccccccoqq...",
-".occcccccpoq....",
-".occcccccppq....",
-".occccccqqpo....",
-".occccccqqpo....",
-".occcccqqcpo....",
-".occccqqccpo....",
-".occcqqcccpo....",
-".occtqcccppo....",
-".ottccccppo.....",
-"..oooooooo......",
-"................"];
-const WRITTEN_BOOK = [
-"................",
-"................",
-"..ooooooooooo...",
-".occccccccccco..",
-".occccccccccpo..",
-".occccccccccpo..",
-".occwwwwwwccpo..",
-".occwwwwwwccpo..",
-".occccccccccpo..",
-".occccccccccpo..",
-".occccccccccpo..",
-".occccccccccpo..",
-".oppppppppppo...",
-"..ooooooooooo...",
-"................",
-"................"];
-const INK  = { o:'#3a3a3a', c:'#8c8c8c', p:'#ffffff', q:'#ffffff', t:'#bdbdbd', w:'#ffffff' };
-const GOLD = { o:'#7a5f00', c:'#ffd400', p:'#fff6c8', q:'#ffffff', t:'#b38f00', w:'#fff6c8' };
-function bookSVG(rows, ink){
-  ink = ink || INK; let r='';
-  rows.forEach((row,y)=>{ for(let x=0;x<16;x++){ const f=ink[row[x]]; if(f) r+=`<rect x="${x}" y="${y}" width="1" height="1" fill="${f}"/>`; } });
-  return `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">${r}</svg>`;
-}
-document.getElementById('logo').innerHTML = bookSVG(BOOK_AND_QUILL, GOLD);
-(function(){
-  const host=document.getElementById('books'); if(!host) return;
-  for(let i=0;i<26;i++){
-    const w=document.createElement('div'); w.innerHTML=bookSVG(i%2 ? WRITTEN_BOOK : BOOK_AND_QUILL); const svg=w.firstChild;
-    svg.style.left=(Math.random()*100)+'vw'; svg.style.top=(Math.random()*100)+'vh';
-    svg.style.setProperty('--s', Math.round(22+Math.random()*18)+'px'); svg.style.setProperty('--o', (0.06+Math.random()*0.08).toFixed(2));
-    svg.style.setProperty('--t',(18+Math.random()*22)+'s'); svg.style.setProperty('--dx',((Math.random()-.5)*160)+'px'); svg.style.setProperty('--dy',((Math.random()-.5)*160)+'px');
-    svg.style.animationDelay=(-Math.random()*20)+'s';
-    host.appendChild(svg);
-  }
-})();
 const SB_URL = 'https://ovjeipprgkeygnlkraiu.supabase.co';
 const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92amVpcHByZ2tleWdubGtyYWl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzMDk5NjksImV4cCI6MjEwNTg4NTk2OX0.5q95unvkFe2c1GBP91ztz44ejBX_2AnxQjYk0mxtcPQ';   // public anon key: it can only read the public board
 const API = SB_URL + '/functions/v1/api';
 const ROUND = Math.max(0, parseInt(new URLSearchParams(location.search).get('round') || '1', 10) || 0);
 const $ = s => document.querySelector(s);
+const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_ANON) : null;
 $('#lnk-hashes').href = API + '/board?round=' + ROUND; $('#lnk-ledger').href = API + '/ledger';
 $('#badge').textContent = 'R' + ROUND; $('#round-title').textContent = ROUND === 0 ? 'TEST ROUND' : 'ROUND ' + ROUND;
@@ -213,34 +178,34 @@ async function loadBoard(){
     $('#round-status').textContent = ROUND === 0 ? 'SINGLEPLAYER TEST HIDES · WORTHLESS · REDEEMABLE FOR TESTING'
       : open ? 'OPEN SINCE ' + day(rd.opened_at) + ' · EVERY HASH BELOW WAS COMMITTED BEFORE THAT DAY'
       : 'NOT OPEN YET · HASHES ARE BEING COMMITTED · NOTHING CAN BE REDEEMED UNTIL IT OPENS';
-    const b = $('#board'); b.innerHTML = '';
-    if (!coins.length) { b.innerHTML = '<li class="out"><span class="n">#</span><span class="name">NOTHING HIDDEN YET</span><span class="s"></span></li>'; return; }
-    coins.forEach((c,i) => {
-      const li = document.createElement('li'); li.className = c.found_at ? 'found' : 'out';
-      const st = c.found_at ? 'FOUND · ' + (c.found_ign || 'ANONYMOUS').toUpperCase() + ' · ' + day(c.found_at) : 'STILL OUT THERE · HIDDEN ' + day(c.hidden_at) + (c.blind ? ' · BLIND RUN' : '');
-      li.innerHTML = `<span class="n">#${String(i+1).padStart(3,'0')}</span><span class="name">COIN ${c.number}<div class="h">${c.hash}</div></span><span class="s">${st}</span>`;
-      b.appendChild(li);
-    });
-  } catch(e) { $('#board').innerHTML = '<li class="out"><span class="n">#</span><span class="name">BOARD UNAVAILABLE</span><span class="s"></span></li>'; $('#round-status').textContent = ''; }
+    const b = $('#board');
+    if (!coins.length) { b.innerHTML = '<div class="card empty">NOTHING HIDDEN YET</div>'; return; }
+    b.innerHTML = coins.map(c => {
+      const f = !!c.found_at;
+      const st = f ? 'FOUND · ' + esc((c.found_ign || 'ANONYMOUS').toUpperCase()) + ' · ' + day(c.found_at) : 'STILL OUT · HIDDEN ' + day(c.hidden_at) + (c.blind ? ' · BLIND RUN' : '');
+      return `<div class="card ${f ? 'found' : 'out'}" title="sha256 ${c.hash}"><img src="${f ? 'favicon.svg' : 'book-grey.svg'}" alt=""><b>COIN ${c.number}</b><span>${st}</span><i>${c.hash.slice(0,16)}…</i></div>`;
+    }).join('');
+  } catch(e) { $('#board').innerHTML = '<div class="card empty">BOARD UNAVAILABLE</div>'; $('#round-status').textContent = ''; }
 }
 const norm = v => v.toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^QLL/,'').replace(/(.{5})/g,'$1-').replace(/-$/,'');
 let session = null, emailMode = false;
-const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nameOf = u => { const m = u.user_metadata || {}; return (m.custom_claims && m.custom_claims.global_name) || m.full_name || m.preferred_username || m.name || u.email || 'YOU'; };
 async function showAuth(){
   const on = !!session;
   $('#btn-discord').hidden = on; $('#btn-email-toggle').hidden = on;
   $('#email').hidden = on || !emailMode; $('#btn-login').hidden = on || !emailMode;
-  const who = $('#who'), mine = $('#mine');
-  if (!on) { who.textContent = 'REDEEMING NEEDS A SIGN-IN SO THE COIN HAS AN OWNER. CHECKING DOES NOT.'; mine.hidden = true; return; }
+  const who = $('#who'), mine = $('#mine'), books = $('#mine-books');
+  if (!on) { who.textContent = 'REDEEMING NEEDS A SIGN-IN SO THE COIN HAS AN OWNER. CHECKING DOES NOT.'; mine.hidden = true; books.hidden = true; return; }
   who.innerHTML = 'SIGNED IN AS ' + esc(nameOf(session.user)).toUpperCase() + ' · <a id="logout">SIGN OUT</a>'; $('#logout').onclick = () => sb.auth.signOut();
   try {
     const { data, error } = await sb.from('ledger').select('delta, coin_round, coin_number, at').eq('user_id', session.user.id).order('at', {ascending:false});
     if (error) throw error;
     const rows = data || [], bal = rows.reduce((t,e) => t + Number(e.delta), 0);
     mine.hidden = false;
-    mine.textContent = 'YOUR COINS: ' + bal.toFixed(1) + ' QLL' + (rows.length ? ' · ' + rows.map(e => 'R' + e.coin_round + ' #' + e.coin_number).join(', ') : ' · NONE YET. GO FIND ONE.');
-  } catch(e) { mine.hidden = true; }
+    mine.textContent = 'YOUR COINS: ' + bal.toFixed(1) + ' QLL' + (rows.length ? ' · ' + rows.length + (rows.length === 1 ? ' BOOK' : ' BOOKS') : ' · NONE YET. GO FIND ONE.');
+    books.hidden = !rows.length;
+    books.innerHTML = rows.map(e => `<div class="card found"><img src="favicon.svg" alt=""><b>R${e.coin_round} COIN ${e.coin_number}</b><span>REDEEMED ${day(e.at)}</span></div>`).join('');
+  } catch(e) { mine.hidden = true; books.hidden = true; }
 }
 if (sb) { sb.auth.getSession().then(({data}) => { session = data.session; showAuth(); }); sb.auth.onAuthStateChange((_e, s) => { session = s; showAuth(); }); }
 try { $('#ign').value = localStorage.getItem('qll-ign') || ''; } catch(e) {}

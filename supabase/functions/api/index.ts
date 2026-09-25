@@ -6,6 +6,7 @@ const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const HIDER_KEY = Deno.env.get("HIDER_KEY") ?? "";
+const WEBHOOK = Deno.env.get("DISCORD_WEBHOOK_URL") ?? "";   // optional: announce every find in the community server
 const admin = createClient(SB_URL, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
 
 const CORS = {
@@ -171,5 +172,15 @@ async function redeem(req: Request) {
     throw error;
   }
   const row = Array.isArray(data) ? data[0] : data;
+  announce(row.round, row.number, ign).catch((e) => console.error("webhook", e));
   return json(200, { ok: true, round: row.round, number: row.number, message: `R${row.round} coin ${row.number} is yours. 1 QLL minted to you, 0.1 to the founder wallet` });
+}
+
+async function announce(round: number, number: number, ign: string) {
+  if (!WEBHOOK || round === 0) return;
+  const { data: c } = await admin.from("coins").select("hidden_at").eq("round", round).eq("number", number).maybeSingle();
+  const days = c ? Math.floor((Date.now() - Date.parse(c.hidden_at)) / 86_400_000) : null;
+  const who = ign ? `**${ign.replace(/[*_`~|]/g, "")}**` : "someone";
+  const content = `R${round} Coin ${number} was just found by ${who}${days == null ? "" : ` after ${days} day${days === 1 ? "" : "s"} out there`}. https://quillcoin.gg/`;
+  await fetch(WEBHOOK, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, username: "QuillCoin" }) });
 }
