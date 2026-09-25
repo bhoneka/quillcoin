@@ -52,6 +52,27 @@
   .card.found { border-color:var(--found) } .card.found span { color:var(--found) }
   .card.empty { justify-content:center; align-items:center; color:var(--dim); font-size:12px; letter-spacing:.14em }
   .grid.mine { grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); grid-column:1 / -1 }
+  .list { list-style:none }
+  .list li { display:grid; grid-template-columns:40px 1fr auto; gap:14px; align-items:baseline; padding:7px 0; font-size:clamp(18px,3.4vw,30px); line-height:1.15; border-top:1px solid var(--line) }
+  .list li:first-child { border-top:0 }
+  .list .n { font-size:11px; color:var(--dim); letter-spacing:.1em }
+  .list .s { font-size:11px; letter-spacing:.1em; color:var(--dim); white-space:nowrap }
+  .list li.found .s { color:var(--found) }
+  .list li.out { color:var(--dim) }
+  .list li.out .name::after { content:" ▮"; animation:blink 1.2s steps(1) infinite }
+  .list .h { font-size:10px; color:var(--dim); letter-spacing:.06em; text-transform:none; word-break:break-all }
+  @keyframes blink { 50% { opacity:0 } }
+  .view { display:flex; gap:8px; margin:-4px 0 14px } .view button { padding:6px 10px; font-size:11px; letter-spacing:.14em } .view button.on { background:var(--hot); border-color:var(--hot); color:#000 }
+  .mapbox { position:relative; width:100%; max-width:900px; aspect-ratio:1; margin:0 auto; background:#000; border:1px solid var(--line); overflow:hidden }
+  .mapbox img.terrain { position:absolute; left:25%; top:25%; width:50%; height:50% }
+  .mapbox .ring { position:absolute; inset:25%; border:1px dashed #3a3a3a; pointer-events:none }
+  .mapbox .lbl { position:absolute; font-size:9px; letter-spacing:.14em; color:var(--dim) }
+  .mapbox .spawn { position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px 0 0 -3px; background:var(--hot); border-radius:50% }
+  .pin { position:absolute; width:22px; height:22px; transform:translate(-50%,-50%) }
+  .pin img { width:100%; height:100%; image-rendering:pixelated; filter:drop-shadow(0 0 5px #ffd400) }
+  .pin span { position:absolute; left:26px; top:3px; white-space:nowrap; font-size:10px; letter-spacing:.1em; background:rgba(0,0,0,.85); border:1px solid var(--line); padding:2px 6px; display:none }
+  .pin:hover span, .pin.on span { display:block }
+  .pin.left span { left:auto; right:26px }
   .grid.mine .card { padding:9px } .grid.mine .card b { font-size:14px }
   .redeem { display:grid; gap:12px; max-width:760px }
   .redeem input { width:100%; background:#000; color:#fff; border:2px solid #fff; padding:18px 16px; font:inherit; font-size:clamp(18px,4vw,28px); letter-spacing:.12em; text-transform:uppercase; outline:0 }
@@ -80,7 +101,7 @@
   .rules b { color:#fff }
   footer { padding:26px 0; font-size:11px; color:var(--dim); letter-spacing:.12em; display:flex; gap:22px; flex-wrap:wrap }
   footer a:hover { color:var(--hot) }
-  @media (max-width:600px){ .grid { grid-template-columns:repeat(2, 1fr) } }
+  @media (max-width:600px){ .grid { grid-template-columns:repeat(2, 1fr) } .list li { grid-template-columns:32px 1fr } .list .s { grid-column:2 } }
 </style>
 </head>
 <body>
@@ -117,7 +138,19 @@
       <div class="stat"><b id="s-found">–</b><span>FOUND</span></div>
       <div class="stat"><b id="s-last">–</b><span>SINCE LAST FIND</span></div>
     </div>
+    <div class="view"><button class="ghost on" id="v-cards">CARDS</button><button class="ghost" id="v-list">LIST</button></div>
     <div class="grid" id="board"><div class="card empty">LOADING</div></div>
+  </section>
+
+  <section id="map">
+    <h2>WHERE THE FOUND ONES WERE</h2>
+    <p class="rstat">EACH BOOK'S POSITION IS ENCRYPTED WITH ITS OWN CODE THE MOMENT IT IS HIDDEN. NOBODY CAN READ IT, NOT THE SITE, NOT THE HIDER, UNTIL THAT CODE IS REDEEMED. THEN IT LANDS HERE.</p>
+    <div class="mapbox" id="mapbox">
+      <img class="terrain" src="map-lit.jpg" alt="">
+      <div class="ring"></div>
+      <div class="spawn" title="0, 0"></div>
+      <span class="lbl" style="left:8px;top:6px">±100K</span><span class="lbl" style="left:25.5%;top:calc(25% + 4px)">±50K SURVEYED</span>
+    </div>
   </section>
 
   <section>
@@ -180,17 +213,49 @@ async function loadBoard(){
     $('#round-status').textContent = ROUND === 0 ? 'SINGLEPLAYER TEST HIDES · WORTHLESS · REDEEMABLE FOR TESTING'
       : open ? 'OPEN SINCE ' + day(rd.opened_at) + ' · EVERY HASH BELOW WAS COMMITTED BEFORE THAT DAY'
       : 'NOT OPEN YET · HASHES ARE BEING COMMITTED · NOTHING CAN BE REDEEMED UNTIL IT OPENS';
-    const b = $('#board');
-    if (!coins.length) { b.innerHTML = '<div class="card empty">NOTHING HIDDEN YET</div>'; return; }
-    b.innerHTML = coins.map(c => {
-      const f = !!c.found_at, name = esc((c.found_ign || c.found_name || 'ANONYMOUS').toUpperCase());
-      const st = f ? head(c.found_ign) + 'FOUND · ' + name + ' · ' + day(c.found_at) : 'STILL OUT · HIDDEN ' + day(c.hidden_at) + (c.blind ? ' · BLIND RUN' : '');
-      return `<div class="card ${f ? 'found' : 'out'}" title="sha256 ${c.hash}"><img class="book" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><b>COIN ${c.number}</b><span>${st}</span><i>${c.hash.slice(0,16)}…</i></div>`;
-    }).join('');
-  } catch(e) { $('#board').innerHTML = '<div class="card empty">BOARD UNAVAILABLE</div>'; $('#round-status').textContent = ''; }
+    lastCoins = coins; renderBoard(); renderMap();
+  } catch(e) { $('#board').className = 'grid'; $('#board').innerHTML = '<div class="card empty">BOARD UNAVAILABLE</div>'; $('#round-status').textContent = ''; }
 }
 const norm = v => v.toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^QLL/,'').replace(/(.{5})/g,'$1-').replace(/-$/,'');
 const validIgn = v => /^[A-Za-z0-9_]{3,16}$/.test(v);
+let lastCoins = [], view = 'cards';
+try { view = localStorage.getItem('qll-view') === 'list' ? 'list' : 'cards'; } catch(e) {}
+const finder = c => esc((c.found_ign || c.found_name || 'ANONYMOUS').toUpperCase());
+function renderBoard(){
+  const b = $('#board'), coins = lastCoins;
+  $('#v-cards').classList.toggle('on', view === 'cards'); $('#v-list').classList.toggle('on', view === 'list');
+  if (view === 'list') {
+    b.className = 'list';
+    if (!coins.length) { b.innerHTML = '<div class="n">NOTHING HIDDEN YET</div>'; return; }
+    b.innerHTML = coins.map((c, i) => {
+      const f = !!c.found_at;
+      const st = f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT THERE';
+      return `<li class="${f ? 'found' : 'out'}"><span class="n">#${String(i + 1).padStart(3, '0')}</span><span class="name">COIN ${c.number}<div class="h">${c.hash}</div></span><span class="s">${st}</span></li>`;
+    }).join('');
+    return;
+  }
+  b.className = 'grid';
+  if (!coins.length) { b.innerHTML = '<div class="card empty">NOTHING HIDDEN YET</div>'; return; }
+  b.innerHTML = coins.map(c => {
+    const f = !!c.found_at;
+    const st = f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT · HIDDEN ' + day(c.hidden_at) + (c.blind ? ' · BLIND RUN' : '');
+    return `<div class="card ${f ? 'found' : 'out'}" title="sha256 ${c.hash}"><img class="book" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><b>COIN ${c.number}</b><span>${st}</span><i>${c.hash.slice(0,16)}…</i></div>`;
+  }).join('');
+}
+function renderMap(){
+  const box = $('#mapbox'); box.querySelectorAll('.pin').forEach(p => p.remove());
+  const EXT = 102400;   // the box spans ±102,400 blocks; the survey image sits in the middle half (±51,200)
+  lastCoins.filter(c => c.found_at && Number.isInteger(c.found_x) && Number.isInteger(c.found_z)).forEach(c => {
+    const x = Math.max(-EXT, Math.min(EXT, c.found_x)), z = Math.max(-EXT, Math.min(EXT, c.found_z));
+    const pin = document.createElement('div'); pin.className = 'pin' + (x > EXT * .55 ? ' left' : '');
+    pin.style.left = ((x + EXT) / (2 * EXT) * 100) + '%'; pin.style.top = ((z + EXT) / (2 * EXT) * 100) + '%';
+    pin.innerHTML = `<img src="book-gold.svg" alt=""><span>R${ROUND} COIN ${c.number} · ${finder(c)} · ${c.found_x}, ${c.found_z}</span>`;
+    pin.onclick = () => pin.classList.toggle('on');
+    box.appendChild(pin);
+  });
+}
+$('#v-cards').onclick = () => { view = 'cards'; try { localStorage.setItem('qll-view', view); } catch(e) {} renderBoard(); };
+$('#v-list').onclick  = () => { view = 'list';  try { localStorage.setItem('qll-view', view); } catch(e) {} renderBoard(); };
 const head = ign => validIgn(ign || '') ? `<img class="head" src="https://mc-heads.net/avatar/${encodeURIComponent(ign)}/16" alt="">` : '';
 let session = null;
 const nameOf = u => { const m = u.user_metadata || {}; return (m.custom_claims && m.custom_claims.global_name) || m.full_name || m.preferred_username || m.name || u.email || 'YOU'; };
