@@ -23,7 +23,9 @@
   @keyframes rainbow { to { background-position:400% 0 } }
   h1 small { -webkit-text-fill-color:var(--dim); color:var(--dim); background:none; font-family:ui-monospace, monospace }
   .books { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden }
-  .books svg { position:absolute; width:56px; height:56px; opacity:.16; image-rendering:pixelated; animation:drift var(--t,26s) ease-in-out infinite alternate; }
+  .books svg { position:absolute; width:var(--s,32px); height:var(--s,32px); opacity:var(--o,.1); image-rendering:pixelated; animation:drift var(--t,26s) ease-in-out infinite alternate; }
+  [hidden] { display:none !important }
+  button:disabled { opacity:.35; cursor:default }
   @keyframes drift { from { transform:translate(0,0) rotate(-8deg) } to { transform:translate(var(--dx,40px),var(--dy,-60px)) rotate(10deg) } }
   .bar, main { position:relative; z-index:1 }
   h1 small { display:block; font-size:clamp(14px,2.2vw,18px); letter-spacing:.06em; color:var(--dim); margin-top:14px; font-weight:400 }
@@ -81,9 +83,12 @@
       <input id="code" placeholder="QLL-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" autocapitalize="characters">
       <input id="ign" class="small" placeholder="YOUR MINECRAFT NAME - SHOWN ON THE BOARD WHEN YOU REDEEM" maxlength="16" autocomplete="off" spellcheck="false">
       <div class="auth" id="auth">
-        <input id="email" class="small" type="email" placeholder="EMAIL - WE SEND A SIGN-IN LINK, NO PASSWORD" autocomplete="email">
-        <button class="ghost" id="btn-login">SEND LINK</button>
+        <button id="btn-discord">SIGN IN WITH DISCORD</button>
+        <button class="ghost" id="btn-email-toggle">EMAIL LINK INSTEAD</button>
+        <input id="email" class="small" type="email" placeholder="EMAIL - WE SEND A SIGN-IN LINK, NO PASSWORD" autocomplete="email" hidden>
+        <button class="ghost" id="btn-login" hidden>SEND LINK</button>
         <div class="who" id="who">REDEEMING NEEDS A SIGN-IN SO THE COIN HAS AN OWNER. CHECKING DOES NOT.</div>
+        <div class="who" id="mine" hidden></div>
       </div>
       <div class="row"><button id="btn-redeem">REDEEM</button><button class="ghost" id="btn-check">JUST CHECK</button></div>
       <div class="msg" id="msg"></div>
@@ -129,53 +134,53 @@
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
 <script>
-// 16x16 pixel art, drawn as rects. "#" = ink, "." = paper, "q" = quill, " " = empty
-const QUILL = [
-"                ",
-"   ##########   ",
-"  #..........#  ",
-"  #..........#  ",
-"  #...####...#  ",
-"  #..........#  ",
-"  #...####...#  ",
-"  #..........#q ",
-"  #...####..qq  ",
-"  #........qq.  ",
-"  #.......qq.#  ",
-"  #......qq..#  ",
-"  #..........#  ",
-"  #..........#  ",
-"   ##########   ",
-"                "];
-const ENCH = [
-"                ",
-"   ##########   ",
-"  #..........#  ",
-"  #.#......#.#  ",
-"  #..........#  ",
-"  #...#..#...#  ",
-"  #..........#  ",
-"  #.#..##..#.#  ",
-"  #..........#  ",
-"  #...#..#...#  ",
-"  #..........#  ",
-"  #.#......#.#  ",
-"  #..........#  ",
-"  #..........#  ",
-"   ##########   ",
-"                "];
-function bookSVG(rows, ink, paper){
+// 16x16 pixel art of the two items, drawn as rects. o outline, c cover, p pages, q quill, t nib, w label, . empty
+const BOOK_AND_QUILL = [
+"................",
+"............qq..",
+"...........qqq..",
+"..oooooooo.qqq..",
+".occccccccoqq...",
+".occcccccpoq....",
+".occcccccppq....",
+".occccccqqpo....",
+".occccccqqpo....",
+".occcccqqcpo....",
+".occccqqccpo....",
+".occcqqcccpo....",
+".occtqcccppo....",
+".ottccccppo.....",
+"..oooooooo......",
+"................"];
+const WRITTEN_BOOK = [
+"................",
+"................",
+"..ooooooooooo...",
+".occccccccccco..",
+".occccccccccpo..",
+".occccccccccpo..",
+".occwwwwwwccpo..",
+".occwwwwwwccpo..",
+".occccccccccpo..",
+".occccccccccpo..",
+".occccccccccpo..",
+".occccccccccpo..",
+".oppppppppppo...",
+"..ooooooooooo...",
+"................",
+"................"];
+const INK = { o:'#3a3a3a', c:'#8c8c8c', p:'#ffffff', q:'#ffffff', t:'#bdbdbd', w:'#ffffff' };
+function bookSVG(rows){
   let r='';
-  rows.forEach((row,y)=>{ for(let x=0;x<16;x++){ const c=row[x]; if(c===' ') continue; const f = c==='#'||c==='q' ? ink : paper; r+=`<rect x="${x}" y="${y}" width="1" height="1" fill="${f}"/>`; } });
+  rows.forEach((row,y)=>{ for(let x=0;x<16;x++){ const f=INK[row[x]]; if(f) r+=`<rect x="${x}" y="${y}" width="1" height="1" fill="${f}"/>`; } });
   return `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">${r}</svg>`;
 }
 (function(){
   const host=document.getElementById('books'); if(!host) return;
-  const variants=[[QUILL,'#fff','#000'],[QUILL,'#000','#fff'],[ENCH,'#fff','#000'],[ENCH,'#000','#fff']];
-  for(let i=0;i<18;i++){
-    const [rows,ink,paper]=variants[i%4];
-    const w=document.createElement('div'); w.innerHTML=bookSVG(rows,ink,paper); const svg=w.firstChild;
+  for(let i=0;i<26;i++){
+    const w=document.createElement('div'); w.innerHTML=bookSVG(i%2 ? WRITTEN_BOOK : BOOK_AND_QUILL); const svg=w.firstChild;
     svg.style.left=(Math.random()*100)+'vw'; svg.style.top=(Math.random()*100)+'vh';
+    svg.style.setProperty('--s', Math.round(22+Math.random()*18)+'px'); svg.style.setProperty('--o', (0.06+Math.random()*0.08).toFixed(2));
     svg.style.setProperty('--t',(18+Math.random()*22)+'s'); svg.style.setProperty('--dx',((Math.random()-.5)*160)+'px'); svg.style.setProperty('--dy',((Math.random()-.5)*160)+'px');
     svg.style.animationDelay=(-Math.random()*20)+'s';
     host.appendChild(svg);
@@ -213,14 +218,36 @@ async function loadBoard(){
   } catch(e) { $('#board').innerHTML = '<li class="out"><span class="n">#</span><span class="name">BOARD UNAVAILABLE</span><span class="s"></span></li>'; $('#round-status').textContent = ''; }
 }
 const norm = v => v.toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^QLL/,'').replace(/(.{5})/g,'$1-').replace(/-$/,'');
-let session = null;
-function showAuth(){
-  const who = $('#who'), em = $('#email'), bl = $('#btn-login');
-  if (session) { em.style.display = 'none'; bl.style.display = 'none'; who.innerHTML = 'SIGNED IN AS ' + session.user.email.toUpperCase() + ' · <a id="logout">SIGN OUT</a>'; $('#logout').onclick = () => sb.auth.signOut(); }
-  else { em.style.display = ''; bl.style.display = ''; who.textContent = 'REDEEMING NEEDS A SIGN-IN SO THE COIN HAS AN OWNER. CHECKING DOES NOT.'; }
+let session = null, emailMode = false;
+const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nameOf = u => { const m = u.user_metadata || {}; return (m.custom_claims && m.custom_claims.global_name) || m.full_name || m.preferred_username || m.name || u.email || 'YOU'; };
+async function showAuth(){
+  const on = !!session;
+  $('#btn-discord').hidden = on; $('#btn-email-toggle').hidden = on;
+  $('#email').hidden = on || !emailMode; $('#btn-login').hidden = on || !emailMode;
+  const who = $('#who'), mine = $('#mine');
+  if (!on) { who.textContent = 'REDEEMING NEEDS A SIGN-IN SO THE COIN HAS AN OWNER. CHECKING DOES NOT.'; mine.hidden = true; return; }
+  who.innerHTML = 'SIGNED IN AS ' + esc(nameOf(session.user)).toUpperCase() + ' · <a id="logout">SIGN OUT</a>'; $('#logout').onclick = () => sb.auth.signOut();
+  try {
+    const { data, error } = await sb.from('ledger').select('delta, coin_round, coin_number, at').eq('user_id', session.user.id).order('at', {ascending:false});
+    if (error) throw error;
+    const rows = data || [], bal = rows.reduce((t,e) => t + Number(e.delta), 0);
+    mine.hidden = false;
+    mine.textContent = 'YOUR COINS: ' + bal.toFixed(1) + ' QLL' + (rows.length ? ' · ' + rows.map(e => 'R' + e.coin_round + ' #' + e.coin_number).join(', ') : ' · NONE YET. GO FIND ONE.');
+  } catch(e) { mine.hidden = true; }
 }
 if (sb) { sb.auth.getSession().then(({data}) => { session = data.session; showAuth(); }); sb.auth.onAuthStateChange((_e, s) => { session = s; showAuth(); }); }
 try { $('#ign').value = localStorage.getItem('qll-ign') || ''; } catch(e) {}
+$('#btn-discord').onclick = async () => {
+  $('#msg').textContent = '…';
+  const { error } = await sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname } });
+  if (error) $('#msg').textContent = ('DISCORD SIGN-IN IS NOT ENABLED YET: ' + error.message).toUpperCase();
+};
+$('#btn-email-toggle').onclick = () => { emailMode = !emailMode; showAuth(); };
+// until the Discord provider is switched on, say so and open the email path by default
+fetch(SB_URL + '/auth/v1/settings', { headers: { apikey: SB_ANON } }).then(r => r.json()).then(j => {
+  if (!(j && j.external && j.external.discord)) { const b = $('#btn-discord'); b.textContent = 'DISCORD SIGN-IN: SOON'; b.disabled = true; emailMode = true; showAuth(); }
+}).catch(() => {});
 $('#btn-login').onclick = async () => {
   const email = $('#email').value.trim(); if (!email.includes('@')) { $('#msg').textContent = 'THAT IS NOT AN EMAIL.'; return; }
   $('#msg').textContent = '…';
@@ -234,7 +261,7 @@ async function send(path){
   if (path === '/redeem') { if (!session) { $('#msg').textContent = 'SIGN IN FIRST - SEND YOURSELF THE LINK ABOVE.'; return; } headers['Authorization'] = 'Bearer ' + session.access_token; }
   const ign = $('#ign').value.trim(); try { localStorage.setItem('qll-ign', ign); } catch(e) {}
   $('#msg').textContent = '…';
-  try { const r = await fetch(API+path, {method:'POST', headers, body:JSON.stringify({code, ign})}); const j = await r.json(); $('#msg').textContent = (j.message || JSON.stringify(j)).toUpperCase(); if (j.ok && path === '/redeem') loadBoard(); }
+  try { const r = await fetch(API+path, {method:'POST', headers, body:JSON.stringify({code, ign})}); const j = await r.json(); $('#msg').textContent = (j.message || JSON.stringify(j)).toUpperCase(); if (j.ok && path === '/redeem') { loadBoard(); showAuth(); } }
   catch(e) { $('#msg').textContent = 'COULD NOT REACH THE SERVER.'; }
 }
 $('#btn-redeem').onclick = () => send('/redeem');
