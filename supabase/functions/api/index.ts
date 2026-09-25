@@ -28,6 +28,13 @@ function canon(raw: unknown): string | null {
   if (s.length !== 20) return null;
   return "QLL-" + s.match(/.{5}/g)!.join("-");
 }
+/** Per-IP hits per minute, counted in the database (edge isolates share nothing). The 100-bit code space is the real defence; this just keeps abuse from costing anything. */
+async function limited(req: Request, cls: string, max: number): Promise<boolean> {
+  const ip = (req.headers.get("x-forwarded-for") ?? req.headers.get("cf-connecting-ip") ?? "?").split(",")[0].trim();
+  const { data, error } = await admin.rpc("bump_rate", { p_key: cls + ":" + ip, p_max: max });
+  if (error) { console.error("rate", error.message); return false; }
+  return data === true;
+}
 function sameSecret(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let r = 0;
@@ -40,6 +47,9 @@ Deno.serve(async (req) => {
   const u = new URL(req.url);
   const path = u.pathname.replace(/^\/api/, "").replace(/\/+$/, "") || "/";
   try {
+    const cls = path === "/check" || path === "/redeem" ? "code" : path === "/hide" ? "hide" : "read";
+    const max = cls === "code" ? 20 : cls === "hide" ? 60 : 120;
+    if (await limited(req, cls, max)) return json(429, { ok: false, message: "slow down - try again in a minute" });
     if (req.method === "GET" && path === "/board") return await board(Number(u.searchParams.get("round") ?? "1"));
     if (req.method === "GET" && path === "/ledger") return await ledger();
     if (req.method === "POST" && path === "/hide") return await hide(req);
