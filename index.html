@@ -12,6 +12,7 @@
 <link rel="mask-icon" href="mask-icon.svg" color="#ffd400">
 <link rel="canonical" href="https://quillcoin.gg/">
 <meta name="theme-color" content="#000000">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin="anonymous">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://quillcoin.gg/">
 <meta property="og:title" content="QuillCoin">
@@ -39,13 +40,28 @@
     background:radial-gradient(circle at 50% 42%, rgba(0,0,0,0) 0, rgba(0,0,0,.45) 16vmax, rgba(0,0,0,.92) 30vmax, #000 40vmax), #000 url(map.jpg) center / cover no-repeat }
   @media (max-width:700px){ body::before { background:radial-gradient(circle at 50% 38%, rgba(0,0,0,0) 0, rgba(0,0,0,.5) 22vmax, #000 44vmax), #000 url(map-small.jpg) center / cover no-repeat } }
   body.mapmode main, body.mapmode::before { display:none }
-  #fullmap { position:fixed; inset:0; z-index:4; background:#000; padding-top:45px }
-  .fm-scroll { position:absolute; inset:45px 0 0 0; overflow:auto; cursor:grab; -webkit-overflow-scrolling:touch }
-  .fm-scroll.drag { cursor:grabbing; user-select:none }
-  .mapbox.fm { width:var(--fm, 2400px); height:var(--fm, 2400px); max-width:none; margin:0; border:0; aspect-ratio:auto }
-  .fm-tools { position:fixed; right:16px; bottom:16px; z-index:5; display:flex; gap:8px; align-items:center }
-  .fm-tools button { padding:8px 14px; font-size:14px }
-  .fm-tools .lbl { font-size:10px; letter-spacing:.14em; color:var(--dim); margin-right:8px }
+  #fullmap { position:fixed; inset:0; z-index:4; background:#000 }
+  #leaf { position:absolute; inset:45px 0 0 0; background:#000; cursor:crosshair }
+  .leaflet-container { background:#000; font-family:inherit }
+  .leaflet-tile-pane { filter:grayscale(1) brightness(.35); transition:filter 1.8s ease }
+  body.mapmode.color .leaflet-tile-pane { filter:none }
+  .leaflet-tile { image-rendering:pixelated }
+  .fm-top { position:fixed; top:57px; left:12px; right:12px; z-index:1000; display:flex; justify-content:space-between; align-items:flex-start; gap:10px; pointer-events:none }
+  .fm-top > * { pointer-events:auto }
+  .fm-search { display:flex; gap:6px }
+  .fm-search input { width:190px; background:#000; color:#fff; border:2px solid #fff; padding:8px 10px; font:inherit; font-size:13px; letter-spacing:.1em; text-transform:uppercase; outline:0 }
+  .fm-search input:focus { border-color:var(--hot) } .fm-search button { padding:8px 12px; font-size:12px }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end }
+  .chip { background:rgba(0,0,0,.88); border:1px solid var(--line); padding:8px 10px; font-size:12px; letter-spacing:.12em; white-space:nowrap }
+  .chip b { color:var(--hot); font-weight:400 }
+  .fm-tools { position:fixed; right:12px; bottom:12px; z-index:1000; display:flex; gap:8px; align-items:center }
+  .fm-tools button { padding:8px 14px; font-size:13px }
+  .fm-tools .lbl { font-size:10px; letter-spacing:.14em; color:var(--dim); margin-right:6px; background:rgba(0,0,0,.7); padding:4px 6px }
+  .leaflet-popup-content-wrapper { background:#000; color:#fff; border:1px solid var(--hot); border-radius:0; box-shadow:none; font-family:inherit; text-transform:uppercase; letter-spacing:.08em; font-size:12px }
+  .leaflet-popup-content { margin:10px 14px; line-height:1.5 } .leaflet-popup-tip { background:#000; border:1px solid var(--hot) } .leaflet-popup-close-button { color:#fff }
+  .book-marker { image-rendering:pixelated; filter:drop-shadow(0 0 6px #ffd400) }
+  .map-teaser { margin-top:18px } .map-teaser a { color:var(--hot); text-decoration:underline }
+  @media (max-width:600px){ .fm-top { flex-direction:column } .chips { justify-content:flex-start } .fm-search input { width:150px } }
   [hidden] { display:none !important }
   button:disabled { opacity:.35; cursor:default }
   main { position:relative; z-index:1 }
@@ -72,16 +88,6 @@
   .list .h { font-size:10px; color:var(--dim); letter-spacing:.06em; text-transform:none; word-break:break-all }
   @keyframes blink { 50% { opacity:0 } }
   .view { display:flex; gap:8px; margin:-4px 0 14px } .view button { padding:6px 10px; font-size:11px; letter-spacing:.14em } .view button.on { background:var(--hot); border-color:var(--hot); color:#000 }
-  .mapbox { position:relative; width:100%; max-width:900px; aspect-ratio:1; margin:0 auto; background:#000; border:1px solid var(--line); overflow:hidden }
-  .mapbox img.terrain { position:absolute; left:25%; top:25%; width:50%; height:50% }
-  .mapbox .ring { position:absolute; inset:25%; border:1px dashed #3a3a3a; pointer-events:none }
-  .mapbox .lbl { position:absolute; font-size:9px; letter-spacing:.14em; color:var(--dim) }
-  .mapbox .spawn { position:absolute; left:50%; top:50%; width:6px; height:6px; margin:-3px 0 0 -3px; background:var(--hot); border-radius:50% }
-  .pin { position:absolute; width:22px; height:22px; transform:translate(-50%,-50%) }
-  .pin img { width:100%; height:100%; image-rendering:pixelated; filter:drop-shadow(0 0 5px #ffd400) }
-  .pin span { position:absolute; left:26px; top:3px; white-space:nowrap; font-size:10px; letter-spacing:.1em; background:rgba(0,0,0,.85); border:1px solid var(--line); padding:2px 6px; display:none }
-  .pin:hover span, .pin.on span { display:block }
-  .pin.left span { left:auto; right:26px }
   .grid.mine .card { padding:9px } .grid.mine .card b { font-size:14px }
   .redeem { display:grid; gap:12px; max-width:760px }
   .redeem input { width:100%; background:#000; color:#fff; border:2px solid #fff; padding:18px 16px; font:inherit; font-size:clamp(18px,4vw,28px); letter-spacing:.12em; text-transform:uppercase; outline:0 }
@@ -119,8 +125,12 @@
   <div class="r"><a href="#redeem">REDEEM↗</a><a href="#coins">COINS</a><a href="#map" id="nav-map">MAP</a><span class="badge" id="badge">R1</span></div>
 </div>
 <div id="fullmap" hidden>
-  <div class="fm-scroll" id="fm-scroll"><div class="mapbox fm" id="fullbox"><img class="terrain" src="map-lit.jpg" alt=""><div class="ring"></div><div class="spawn" title="0, 0"></div><span class="lbl" style="left:25.5%;top:calc(25% + 4px)">±50K SURVEYED · OUTSIDE THE DASHES IS UNMAPPED</span></div></div>
-  <div class="fm-tools"><span class="lbl">DRAG TO PAN · CLICK A BOOK</span><button class="ghost" id="fm-out">−</button><button class="ghost" id="fm-in">+</button><button id="fm-close">CLOSE</button></div>
+  <div id="leaf"></div>
+  <div class="fm-top">
+    <form class="fm-search" id="fm-search"><input id="fm-q" placeholder="GO TO X Z" autocomplete="off" spellcheck="false"><button class="ghost" type="submit">GO</button></form>
+    <div class="chips"><span class="chip" id="c-ow">OVERWORLD <b>0 0</b></span><span class="chip" id="c-ne">NETHER <b>0 0</b></span></div>
+  </div>
+  <div class="fm-tools"><span class="lbl">SCROLL TO ZOOM · DRAG TO PAN · SURVEYED ±50K, BLACK BEYOND</span><button id="fm-close">CLOSE</button></div>
 </div>
 <main id="top">
   <section>
@@ -153,17 +163,7 @@
     </div>
     <div class="view"><button class="ghost on" id="v-cards">CARDS</button><button class="ghost" id="v-list">LIST</button></div>
     <div class="grid" id="board"><div class="card empty">LOADING</div></div>
-  </section>
-
-  <section id="map">
-    <h2>WHERE THE FOUND ONES WERE</h2>
-    <p class="rstat">EACH BOOK'S POSITION IS ENCRYPTED WITH ITS OWN CODE THE MOMENT IT IS HIDDEN. NOBODY CAN READ IT, NOT THE SITE, NOT THE HIDER, UNTIL THAT CODE IS REDEEMED. THEN IT LANDS HERE.</p>
-    <div class="mapbox" id="mapbox">
-      <img class="terrain" src="map-lit.jpg" alt="">
-      <div class="ring"></div>
-      <div class="spawn" title="0, 0"></div>
-      <span class="lbl" style="left:8px;top:6px">±100K</span><span class="lbl" style="left:25.5%;top:calc(25% + 4px)">±50K SURVEYED</span>
-    </div>
+    <p class="rstat map-teaser"><a href="#map" id="map-teaser">OPEN THE MAP ↗</a> · <span id="map-count">–</span> FOUND BOOKS SIT WHERE THEY WERE HIDDEN. A BOOK'S POSITION IS SEALED WITH ITS OWN CODE AND ONLY OPENS WHEN THAT CODE IS REDEEMED.</p>
   </section>
 
   <section>
@@ -203,6 +203,7 @@
   </footer>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin="anonymous"></script>
 <script>
 const SB_URL = 'https://ovjeipprgkeygnlkraiu.supabase.co';
 const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92amVpcHByZ2tleWdubGtyYWl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzMDk5NjksImV4cCI6MjEwNTg4NTk2OX0.5q95unvkFe2c1GBP91ztz44ejBX_2AnxQjYk0mxtcPQ';   // public anon key: it can only read the public board
@@ -255,36 +256,48 @@ function renderBoard(){
     return `<div class="card ${f ? 'found' : 'out'}" title="sha256 ${c.hash}"><img class="book" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><b>COIN ${c.number}</b><span>${st}</span><i>${c.hash.slice(0,16)}…</i></div>`;
   }).join('');
 }
-function renderMap(){ renderMapInto($('#mapbox')); renderMapInto($('#fullbox')); }
-function renderMapInto(box){
-  box.querySelectorAll('.pin').forEach(p => p.remove());
-  const EXT = 102400;   // the box spans ±102,400 blocks; the survey image sits in the middle half (±51,200)
-  lastCoins.filter(c => c.found_at && Number.isInteger(c.found_x) && Number.isInteger(c.found_z)).forEach(c => {
-    const x = Math.max(-EXT, Math.min(EXT, c.found_x)), z = Math.max(-EXT, Math.min(EXT, c.found_z));
-    const pin = document.createElement('div'); pin.className = 'pin' + (x > EXT * .55 ? ' left' : '');
-    pin.style.left = ((x + EXT) / (2 * EXT) * 100) + '%'; pin.style.top = ((z + EXT) / (2 * EXT) * 100) + '%';
-    pin.innerHTML = `<img src="book-gold.svg" alt=""><span>R${ROUND} COIN ${c.number} · ${finder(c)} · ${c.found_x}, ${c.found_z}</span>`;
-    pin.onclick = e => { e.stopPropagation(); pin.classList.toggle('on'); };
-    box.appendChild(pin);
-  });
+// ---- the map: Leaflet on our own tiles. 16 blocks per pixel at zoom 5 on an 8192 px canvas with block 0,0 at pixel 4096,4096.
+const TILE_ORIGIN = 4096, BLOCKS_PER_PX = 16, NATIVE = 5, SCALE = 1 << NATIVE;
+const toLatLng = (x, z) => L.latLng(-(z / BLOCKS_PER_PX + TILE_ORIGIN) / SCALE, (x / BLOCKS_PER_PX + TILE_ORIGIN) / SCALE);
+const toBlock = ll => ({ x: Math.round((ll.lng * SCALE - TILE_ORIGIN) * BLOCKS_PER_PX), z: Math.round((-ll.lat * SCALE - TILE_ORIGIN) * BLOCKS_PER_PX) });
+const bookIcon = L.icon({ iconUrl: 'book-gold.svg', iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -14], className: 'book-marker' });
+let map = null, markers = [];
+const foundOnes = () => lastCoins.filter(c => c.found_at && Number.isInteger(c.found_x) && Number.isInteger(c.found_z));
+function ensureMap(){
+  if (map) return map;
+  map = L.map('leaf', { crs: L.CRS.Simple, minZoom: 1, maxZoom: 8, zoomControl: false, attributionControl: false, zoomSnap: 0.25, wheelPxPerZoomLevel: 90,
+    maxBounds: L.latLngBounds(toLatLng(-160000, -160000), toLatLng(160000, 160000)), maxBoundsViscosity: 1 });
+  L.tileLayer('tiles/{z}/{x}/{y}.webp', { minZoom: 0, maxZoom: 8, maxNativeZoom: NATIVE, tileSize: 256, noWrap: true, errorTileUrl: 'tiles/blank.webp',
+    bounds: L.latLngBounds(toLatLng(-65536, -65536), toLatLng(65536, 65536)) }).addTo(map);
+  L.circleMarker(toLatLng(0, 0), { radius: 5, color: '#ffd400', fillColor: '#ffd400', fillOpacity: 1, weight: 0 }).addTo(map).bindPopup('SPAWN<br>0, 0');
+  map.on('mousemove', e => showCoords(toBlock(e.latlng)));
+  map.on('move', () => { if (matchMedia('(hover: none)').matches) showCoords(toBlock(map.getCenter())); });
+  map.setView(toLatLng(0, 0), 3);
+  return map;
 }
-// full-screen map: the page steps aside, drag to pan, +/- to zoom, centred on spawn the first time
-let fmSize = 2400, fmCentred = false;
+function showCoords(b){ $('#c-ow').innerHTML = 'OVERWORLD <b>' + b.x + ' ' + b.z + '</b>'; $('#c-ne').innerHTML = 'NETHER <b>' + Math.round(b.x / 8) + ' ' + Math.round(b.z / 8) + '</b>'; }
+function renderMap(){
+  $('#map-count').textContent = foundOnes().length;
+  if (!map) return;
+  markers.forEach(m => m.remove()); markers = [];
+  foundOnes().forEach(c => { markers.push(L.marker(toLatLng(c.found_x, c.found_z), { icon: bookIcon }).addTo(map).bindPopup(`R${ROUND} COIN ${c.number}<br>${finder(c)}<br>${c.found_x}, ${c.found_z}`)); });
+}
 function setMapMode(on){
   document.body.classList.toggle('mapmode', on); $('#fullmap').hidden = !on; $('#nav-map').textContent = on ? 'CLOSE MAP' : 'MAP';
-  if (on && !fmCentred) { fmCentred = true; const sc = $('#fm-scroll'); requestAnimationFrame(() => { sc.scrollLeft = (fmSize - sc.clientWidth) / 2; sc.scrollTop = (fmSize - sc.clientHeight) / 2; }); }
-  if (on) history.replaceState(null, '', '#map'); else if (location.hash === '#map') history.replaceState(null, '', location.pathname + location.search);
+  if (on) {
+    ensureMap(); document.body.classList.remove('color');
+    setTimeout(() => { map.invalidateSize(); renderMap(); }, 30);
+    setTimeout(() => document.body.classList.add('color'), 350);       // black and white first, then the colour comes up
+    if (!location.hash.startsWith('#map')) history.replaceState(null, '', '#map');
+  } else { document.body.classList.remove('color'); if (location.hash.startsWith('#map')) history.replaceState(null, '', location.pathname + location.search); }
 }
+function goTo(x, z){ ensureMap(); map.setView(toLatLng(x, z), Math.max(map.getZoom(), 5.5)); L.popup({ closeButton: false }).setLatLng(toLatLng(x, z)).setContent(x + ', ' + z).openOn(map); }
 $('#nav-map').onclick = e => { e.preventDefault(); setMapMode(!document.body.classList.contains('mapmode')); };
+$('#map-teaser').onclick = e => { e.preventDefault(); setMapMode(true); };
 $('#fm-close').onclick = () => setMapMode(false);
-function fmZoom(f){ const sc = $('#fm-scroll'), cx = (sc.scrollLeft + sc.clientWidth / 2) / fmSize, cy = (sc.scrollTop + sc.clientHeight / 2) / fmSize; fmSize = Math.max(1200, Math.min(9600, Math.round(fmSize * f))); $('#fullbox').style.setProperty('--fm', fmSize + 'px'); sc.scrollLeft = cx * fmSize - sc.clientWidth / 2; sc.scrollTop = cy * fmSize - sc.clientHeight / 2; }
-$('#fm-in').onclick = () => fmZoom(1.5); $('#fm-out').onclick = () => fmZoom(1 / 1.5);
-(function(){ const sc = $('#fm-scroll'); let drag = null;
-  sc.addEventListener('pointerdown', e => { if (e.button !== 0) return; drag = { x: e.clientX, y: e.clientY, l: sc.scrollLeft, t: sc.scrollTop }; sc.classList.add('drag'); sc.setPointerCapture(e.pointerId); });
-  sc.addEventListener('pointermove', e => { if (!drag) return; sc.scrollLeft = drag.l - (e.clientX - drag.x); sc.scrollTop = drag.t - (e.clientY - drag.y); });
-  const end = () => { drag = null; sc.classList.remove('drag'); }; sc.addEventListener('pointerup', end); sc.addEventListener('pointercancel', end);
-})();
-if (location.hash === '#map') setMapMode(true);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('mapmode')) setMapMode(false); });
+$('#fm-search').onsubmit = e => { e.preventDefault(); const m = $('#fm-q').value.match(/(-?\d+)[\s,]+(-?\d+)/); if (m) goTo(+m[1], +m[2]); };
+(function(){ const m = location.hash.match(/^#map(?:=(-?\d+),(-?\d+))?$/); if (m) { setMapMode(true); if (m[1]) setTimeout(() => goTo(+m[1], +m[2]), 60); } })();
 $('#v-cards').onclick = () => { view = 'cards'; try { localStorage.setItem('qll-view', view); } catch(e) {} renderBoard(); };
 $('#v-list').onclick  = () => { view = 'list';  try { localStorage.setItem('qll-view', view); } catch(e) {} renderBoard(); };
 const head = ign => validIgn(ign || '') ? `<img class="head" src="https://mc-heads.net/avatar/${encodeURIComponent(ign)}/16" alt="">` : '';
