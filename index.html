@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QUILLCOIN</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="description" content="Signed books hidden in 2b2t dungeon chests. Find one. Redeem the code. Own a coin.">
 <style>
   @font-face { font-family: "Monocraft"; src: url("fonts/Monocraft.ttf") format("truetype"); font-display: swap; }
@@ -17,11 +20,11 @@
   .bar .badge { background:var(--hot); color:#000; padding:2px 6px; font-weight:700 }
   main { padding:0 16px 120px }
   section { border-bottom:1px solid var(--line); padding:26px 0 }
-  h1 { font-family:"Monocraft", ui-monospace, monospace; font-size:clamp(30px, 8vw, 84px); line-height:1.05; font-weight:400; letter-spacing:0;
-       background:linear-gradient(90deg,#ff5555,#ffaa00,#ffff55,#55ff55,#55ffff,#5555ff,#ff55ff,#ff5555); background-size:400% 100%;
-       -webkit-background-clip:text; background-clip:text; color:transparent; animation:rainbow 12s linear infinite }
-  @keyframes rainbow { to { background-position:400% 0 } }
-  h1 small { -webkit-text-fill-color:var(--dim); color:var(--dim); background:none; font-family:ui-monospace, monospace }
+  h1 { font-family:"Monocraft", ui-monospace, monospace; font-size:clamp(30px, 8vw, 84px); line-height:1.05; font-weight:400; letter-spacing:0; color:var(--hot) }
+  h1 small { color:var(--dim); font-family:ui-monospace, monospace }
+  .bar .brand { display:flex; align-items:center; gap:9px }
+  .bar .logo { width:22px; height:22px; display:block }
+  .bar .logo svg { width:100%; height:100%; display:block; image-rendering:pixelated }
   .books { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden }
   .books svg { position:absolute; width:var(--s,32px); height:var(--s,32px); opacity:var(--o,.1); image-rendering:pixelated; animation:drift var(--t,26s) ease-in-out infinite alternate; }
   [hidden] { display:none !important }
@@ -69,7 +72,7 @@
 <body>
 <div class="books" id="books" aria-hidden="true"></div>
 <div class="bar">
-  <a href="#top">QUILLCOIN</a>
+  <a href="#top" class="brand"><span class="logo" id="logo"></span>QUILLCOIN</a>
   <div class="r"><a href="#redeem">REDEEM↗</a><a href="#coins">COINS</a><span class="badge" id="badge">R1</span></div>
 </div>
 <main id="top">
@@ -169,12 +172,14 @@ const WRITTEN_BOOK = [
 "..ooooooooooo...",
 "................",
 "................"];
-const INK = { o:'#3a3a3a', c:'#8c8c8c', p:'#ffffff', q:'#ffffff', t:'#bdbdbd', w:'#ffffff' };
-function bookSVG(rows){
-  let r='';
-  rows.forEach((row,y)=>{ for(let x=0;x<16;x++){ const f=INK[row[x]]; if(f) r+=`<rect x="${x}" y="${y}" width="1" height="1" fill="${f}"/>`; } });
+const INK  = { o:'#3a3a3a', c:'#8c8c8c', p:'#ffffff', q:'#ffffff', t:'#bdbdbd', w:'#ffffff' };
+const GOLD = { o:'#7a5f00', c:'#ffd400', p:'#fff6c8', q:'#ffffff', t:'#b38f00', w:'#fff6c8' };
+function bookSVG(rows, ink){
+  ink = ink || INK; let r='';
+  rows.forEach((row,y)=>{ for(let x=0;x<16;x++){ const f=ink[row[x]]; if(f) r+=`<rect x="${x}" y="${y}" width="1" height="1" fill="${f}"/>`; } });
   return `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">${r}</svg>`;
 }
+document.getElementById('logo').innerHTML = bookSVG(BOOK_AND_QUILL, GOLD);
 (function(){
   const host=document.getElementById('books'); if(!host) return;
   for(let i=0;i<26;i++){
