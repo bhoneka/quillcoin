@@ -35,7 +35,8 @@
   h1 small { color:var(--dim); font-family:ui-monospace, monospace }
   .bar .brand { display:flex; align-items:center; gap:9px }
   .bar .logo { width:22px; height:22px; display:block; image-rendering:pixelated }
-  body::before { content:""; position:fixed; inset:0; z-index:0; pointer-events:none; background:url(map.jpg) center / cover no-repeat; opacity:.2; filter:grayscale(1) }
+  body::before { content:""; position:fixed; inset:0; z-index:0; pointer-events:none; background:#000 url(map.jpg) center / cover no-repeat; opacity:.22 }
+  @media (max-width:700px){ body::before { background-image:url(map-small.jpg) } }
   [hidden] { display:none !important }
   button:disabled { opacity:.35; cursor:default }
   .bar, main { position:relative; z-index:1 }
@@ -151,6 +152,7 @@
     <a id="lnk-ledger" href="#">LEDGER (JSON)</a>
     <a href="https://github.com/bhoneka/quillcoin-hider">HIDER SOURCE</a>
     <a href="?round=0">TEST ROUND</a>
+    <span>MAP · RFRESH2'S 2025 2B2T SURVEY, ±50K</span>
     <span>2B2T.ORG · NOT AFFILIATED</span>
   </footer>
 </main>
