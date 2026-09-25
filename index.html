@@ -130,7 +130,7 @@
     <form class="fm-search" id="fm-search"><input id="fm-q" placeholder="GO TO X Z" autocomplete="off" spellcheck="false"><button class="ghost" type="submit">GO</button></form>
     <div class="chips"><span class="chip" id="c-ow">OVERWORLD <b>0 0</b></span><span class="chip" id="c-ne">NETHER <b>0 0</b></span></div>
   </div>
-  <div class="fm-tools"><span class="lbl">SCROLL TO ZOOM · DRAG TO PAN · SURVEYED ±50K, BLACK BEYOND</span><button id="fm-close">CLOSE</button></div>
+  <div class="fm-tools"><span class="lbl">SCROLL TO ZOOM · DRAG TO PAN · MAP DATA: 2B2T.PLACE 1M² WORLD DOWNLOAD (CC0)</span><button id="fm-close">CLOSE</button></div>
 </div>
 <main id="top">
   <section>
@@ -198,7 +198,7 @@
     <a id="lnk-ledger" href="#">LEDGER (JSON)</a>
     <a href="https://github.com/bhoneka/quillcoin-hider">HIDER SOURCE</a>
     <a href="?round=0">TEST ROUND</a>
-    <span>MAP · RFRESH2'S 2025 2B2T SURVEY, ±50K</span>
+    <span>MAP · 2B2T.PLACE (CC0 1M² WORLD DOWNLOAD)</span>
     <span>2B2T.ORG · NOT AFFILIATED</span>
   </footer>
 </main>
@@ -256,19 +256,21 @@ function renderBoard(){
     return `<div class="card ${f ? 'found' : 'out'}" title="sha256 ${c.hash}"><img class="book" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><b>COIN ${c.number}</b><span>${st}</span><i>${c.hash.slice(0,16)}…</i></div>`;
   }).join('');
 }
-// ---- the map: Leaflet on our own tiles. 16 blocks per pixel at zoom 5 on an 8192 px canvas with block 0,0 at pixel 4096,4096.
-const TILE_ORIGIN = 4096, BLOCKS_PER_PX = 16, NATIVE = 5, SCALE = 1 << NATIVE;
-const toLatLng = (x, z) => L.latLng(-(z / BLOCKS_PER_PX + TILE_ORIGIN) / SCALE, (x / BLOCKS_PER_PX + TILE_ORIGIN) / SCALE);
-const toBlock = ll => ({ x: Math.round((ll.lng * SCALE - TILE_ORIGIN) * BLOCKS_PER_PX), z: Math.round((-ll.lat * SCALE - TILE_ORIGIN) * BLOCKS_PER_PX) });
+// ---- the map: Leaflet over 2b2t.place's tiles (their 1M² world download is CC0; ask them before launch). 512 px tiles, level L = 2^L blocks per pixel, level 0 = one block per pixel.
+// Leaflet zoom z = 10 - level, so one latlng unit = 1024 blocks and block (0,0) is latlng (0,0). Tiles carry signed coordinates around spawn, exactly like theirs.
+const UNIT = 1024, NATIVE = 10;
+const toLatLng = (x, z) => L.latLng(-z / UNIT, x / UNIT);
+const toBlock = ll => ({ x: Math.round(ll.lng * UNIT), z: Math.round(-ll.lat * UNIT) });
+const PlaceTiles = L.TileLayer.extend({ getTileUrl: c => `https://2b2t.place/tiles/base/${NATIVE - c.z}/0/${Math.trunc(c.x / 32)}/${Math.trunc(c.y / 32)}/t.${c.x}.${c.y}.webp` });   // their path: /tiles/base/{lod}/{dimension}/{x/32}/{y/32}/t.{x}.{y}
 const bookIcon = L.icon({ iconUrl: 'book-gold.svg', iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -14], className: 'book-marker' });
 let map = null, markers = [];
 const foundOnes = () => lastCoins.filter(c => c.found_at && Number.isInteger(c.found_x) && Number.isInteger(c.found_z));
 function ensureMap(){
   if (map) return map;
-  map = L.map('leaf', { crs: L.CRS.Simple, minZoom: 1, maxZoom: 8, zoomControl: false, attributionControl: false, zoomSnap: 0.25, wheelPxPerZoomLevel: 90,
-    maxBounds: L.latLngBounds(toLatLng(-160000, -160000), toLatLng(160000, 160000)), maxBoundsViscosity: 1 });
-  L.tileLayer('tiles/{z}/{x}/{y}.webp', { minZoom: 0, maxZoom: 8, maxNativeZoom: NATIVE, tileSize: 256, noWrap: true, errorTileUrl: 'tiles/blank.webp',
-    bounds: L.latLngBounds(toLatLng(-65536, -65536), toLatLng(65536, 65536)) }).addTo(map);
+  map = L.map('leaf', { crs: L.CRS.Simple, minZoom: 0, maxZoom: 12, zoomControl: false, attributionControl: false, zoomSnap: 0.25, wheelPxPerZoomLevel: 90,
+    maxBounds: L.latLngBounds(toLatLng(-600000, -600000), toLatLng(600000, 600000)), maxBoundsViscosity: 1 });
+  new PlaceTiles('', { minZoom: 0, maxZoom: 12, maxNativeZoom: NATIVE, tileSize: 512, noWrap: true, keepBuffer: 3,
+    bounds: L.latLngBounds(toLatLng(-524288, -524288), toLatLng(524288, 524288)) }).addTo(map);
   L.circleMarker(toLatLng(0, 0), { radius: 5, color: '#ffd400', fillColor: '#ffd400', fillOpacity: 1, weight: 0 }).addTo(map).bindPopup('SPAWN<br>0, 0');
   map.on('mousemove', e => showCoords(toBlock(e.latlng)));
   map.on('move', () => { if (matchMedia('(hover: none)').matches) showCoords(toBlock(map.getCenter())); });
