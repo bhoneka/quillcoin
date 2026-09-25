@@ -380,7 +380,13 @@ document.addEventListener('pointerdown', e => { const row = $('#ign-row'); if (!
 if ($('#ign').value.trim()) openIgn();                                     // a remembered name shows straight away
 // the code is checked as it is typed; nothing is spent until REDEEM
 let checkTimer = null, lastChecked = '';
-$('#code').addEventListener('input', () => {
+$('#code').addEventListener('input', e => {
+  // input mask: whatever is typed or pasted becomes QLL-XXXXX-XXXXX-XXXXX-XXXXX with the dashes placed for you
+  const el = $('#code'); let raw = el.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  let body = raw.startsWith('QLL') ? raw.slice(3) : raw; body = body.slice(0, 20);
+  const deleting = e.inputType && e.inputType.startsWith('delete');
+  el.value = body ? 'QLL-' + body.match(/.{1,5}/g).join('-') : (raw.startsWith('QLL') && !deleting ? 'QLL-' : '');
+  el.setSelectionRange(el.value.length, el.value.length);
   clearTimeout(checkTimer);
   const code = 'QLL-' + norm($('#code').value);
   if (code.length < 27) { $('#msg').textContent = code.length > 4 ? (27 - code.length) + ' CHARACTERS TO GO.' : 'CHECKED AS YOU TYPE. NOTHING IS SPENT UNTIL YOU PRESS REDEEM.'; lastChecked = ''; return; }
