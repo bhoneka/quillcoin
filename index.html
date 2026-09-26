@@ -389,7 +389,8 @@ function setMapMode(on){
     mapTimers.push(setTimeout(() => b.classList.add('mapdone'), 950));
     if (!location.hash.startsWith('#map')) history.replaceState(null, '', '#map');
   } else {
-    b.classList.remove('mapdone', 'color'); b.classList.remove('mapmode');   // map fades, page returns
+    b.classList.remove('mapdone', 'color'); void b.offsetHeight;             // page is back in the layout (still invisible) …
+    requestAnimationFrame(() => b.classList.remove('mapmode'));               // … then it fades in as the map fades out
     mapTimers.push(setTimeout(() => { fm.hidden = true; stopGhosts(); }, 950));
     if (location.hash.startsWith('#map')) history.replaceState(null, '', location.pathname + location.search);
   }
