@@ -42,11 +42,16 @@
   @keyframes drift { from { transform:translate(-2%, -1.5%) scale(1.02) } to { transform:translate(2%, 1.5%) scale(1.06) } }
   @media (max-width:700px){ body::before { background-image:url(map-world-small.jpg) } body::after { background:radial-gradient(circle at 50% 38%, rgba(0,0,0,0) 0, rgba(0,0,0,.5) 22vmax, #000 44vmax) } }
   @media (prefers-reduced-motion: reduce){ body::before { animation:none } }
-  body.mapmode main, body.mapmode::before, body.mapmode::after { display:none }
-  #fullmap { position:fixed; inset:0; z-index:4; background:#000 }
+  main, body::after { transition:opacity .9s ease }
+  body.mapmode main { opacity:0; pointer-events:none }                       /* the page dissolves … */
+  body.mapmode::after { opacity:0 }                                           /* … the vignette lifts … */
+  body.mapdone main, body.mapdone::before, body.mapdone::after { display:none }
+  #fullmap { position:fixed; inset:0; z-index:4; background:transparent; opacity:0; transition:opacity .9s ease }
+  body.mapmode #fullmap { opacity:1 }                                         /* … and the same map underneath wakes up */
+  body.mapdone #fullmap { background:#000 }
   #leaf { position:absolute; inset:45px 0 0 0; background:#000; cursor:crosshair }
   .leaflet-container { background:#000; font-family:inherit }
-  .leaflet-tile-pane { filter:grayscale(1) brightness(.35); transition:filter 1.8s ease }
+  .leaflet-tile-pane { filter:grayscale(1) brightness(.2); transition:filter 2.2s ease }
   body.mapmode.color .leaflet-tile-pane { filter:none }
   .leaflet-tile { image-rendering:pixelated }
   .fm-top { position:fixed; top:57px; left:12px; right:12px; z-index:1000; display:flex; justify-content:space-between; align-items:flex-start; gap:10px; pointer-events:none }
@@ -325,7 +330,7 @@ let map = null, markers = [];
 const foundOnes = () => lastCoins.filter(c => c.found_at && Number.isInteger(c.found_x) && Number.isInteger(c.found_z));
 function ensureMap(){
   if (map) return map;
-  map = L.map('leaf', { crs: L.CRS.Simple, minZoom: 0, maxZoom: 12, zoomControl: false, attributionControl: false, zoomSnap: 0.25, wheelPxPerZoomLevel: 90,
+  map = L.map('leaf', { crs: L.CRS.Simple, minZoom: -1, maxZoom: 12, zoomControl: false, attributionControl: false, zoomSnap: 0, wheelPxPerZoomLevel: 90,
     maxBounds: L.latLngBounds(toLatLng(-600000, -600000), toLatLng(600000, 600000)), maxBoundsViscosity: 1 });
   const tileOpts = { minZoom: 0, maxZoom: 12, maxNativeZoom: NATIVE, tileSize: 512, noWrap: true, keepBuffer: 3, errorTileUrl: CLEAR,
     bounds: L.latLngBounds(toLatLng(-524288, -524288), toLatLng(524288, 524288)) };
@@ -361,14 +366,33 @@ function startGhosts(){
   }, Math.max(900, 7000 / ghosts.length));
 }
 function stopGhosts(){ if (ghostTimer) clearInterval(ghostTimer); ghostTimer = null; ghosts.forEach(g => g.remove()); ghosts = []; }
+// the view the page background is showing right now: the square world image, cover-fitted to a box 12% larger than the viewport, plus the drift transform
+function backgroundView(){
+  let a = 1, tx = 0, ty = 0;
+  const m = (getComputedStyle(document.body, '::before').transform || '').match(/matrix\(([^)]+)\)/);
+  if (m) { const v = m[1].split(',').map(Number); a = v[0] || 1; tx = v[4] || 0; ty = v[5] || 0; }
+  const size = Math.max(innerWidth, innerHeight) * 1.12 * a;                 // rendered size of the 1,048,576-block image in px
+  const bpp = 1048576 / size;                                                // blocks per screen pixel
+  const leafTop = $('#leaf').getBoundingClientRect().top;                    // the map box starts under the bar, so its centre sits a little lower
+  return { zoom: Math.log2(1024 / bpp), center: toLatLng(Math.round(-tx * bpp), Math.round((-ty + leafTop / 2) * bpp)) };
+}
+let mapTimers = [];
 function setMapMode(on){
-  document.body.classList.toggle('mapmode', on); $('#fullmap').hidden = !on; $('#nav-map').textContent = on ? 'CLOSE MAP' : 'MAP';
+  const b = document.body, fm = $('#fullmap');
+  mapTimers.forEach(clearTimeout); mapTimers = [];
+  $('#nav-map').textContent = on ? 'CLOSE MAP' : 'MAP';
   if (on) {
-    ensureMap(); document.body.classList.remove('color');
-    setTimeout(() => { map.invalidateSize(); renderMap(); startGhosts(); }, 30);
-    setTimeout(() => document.body.classList.add('color'), 350);       // black and white first, then the colour comes up
+    ensureMap(); b.classList.remove('color', 'mapdone');
+    const v = backgroundView(); fm.hidden = false; map.invalidateSize(); map.setView(v.center, v.zoom, { animate: false });
+    requestAnimationFrame(() => { b.classList.add('mapmode'); renderMap(); startGhosts(); });
+    mapTimers.push(setTimeout(() => b.classList.add('color'), 800));         // page gone: the colour comes up on the same map
+    mapTimers.push(setTimeout(() => b.classList.add('mapdone'), 950));
     if (!location.hash.startsWith('#map')) history.replaceState(null, '', '#map');
-  } else { document.body.classList.remove('color'); stopGhosts(); if (location.hash.startsWith('#map')) history.replaceState(null, '', location.pathname + location.search); }
+  } else {
+    b.classList.remove('mapdone', 'color'); b.classList.remove('mapmode');   // map fades, page returns
+    mapTimers.push(setTimeout(() => { fm.hidden = true; stopGhosts(); }, 950));
+    if (location.hash.startsWith('#map')) history.replaceState(null, '', location.pathname + location.search);
+  }
 }
 function goTo(x, z){ ensureMap(); map.setView(toLatLng(x, z), Math.max(map.getZoom(), 5.5)); L.popup({ closeButton: false }).setLatLng(toLatLng(x, z)).setContent(x + ', ' + z).openOn(map); }
 $('#nav-map').onclick = e => { e.preventDefault(); setMapMode(!document.body.classList.contains('mapmode')); };
