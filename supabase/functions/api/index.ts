@@ -70,11 +70,12 @@ Deno.serve(async (req) => {
     if (req.method === "POST" && path === "/video") return await video(req);
     if (req.method === "POST" && path === "/check") return await check(req);
     if (req.method === "POST" && path === "/redeem") return await redeem(req);
+    if (req.method === "POST" && path === "/claim") return await claim(req);
     if (path === "/") {
       return json(200, {
         ok: true,
         service: "quillcoin api",
-        endpoints: ["GET /board?round=N", "GET /ledger", "POST /check {code}", "POST /redeem {code, ign} + Bearer <user token>", "POST /hide (hider tool only)", "POST /video {round, number, sha256, url} (hider only)"],
+        endpoints: ["GET /board?round=N", "GET /ledger", "POST /check {code}", "POST /redeem {code, ign} + Bearer <user token>", "POST /claim {wallet} + Bearer <user token>", "POST /hide (hider tool only)", "POST /video {round, number, sha256, url} (hider only)"],
       });
     }
     return json(404, { ok: false, message: "no such endpoint" });
@@ -229,4 +230,45 @@ async function announce(round: number, number: number, ign: string) {
   const who = ign ? `**${ign.replace(/[*_`~|]/g, "")}**` : "someone";
   const content = `R${round} Coin ${number} was just found by ${who}${days == null ? "" : ` after ${days} day${days === 1 ? "" : "s"} out there`}. https://quillcoin.gg/`;
   await fetch(WEBHOOK, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, username: "QuillCoin" }) });
+}
+
+/** Moves a finder's whole site balance to their wallet as QLL tokens. Test network for now: QLL_NETWORK / QLL_RPC / QLL_MINT / QLL_AUTHORITY are function secrets. */
+async function claim(req: Request) {
+  const auth = req.headers.get("authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return json(401, { ok: false, need: "login", message: "sign in first" });
+  const asUser = createClient(SB_URL, ANON, { global: { headers: { Authorization: auth } }, auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: { user }, error: uerr } = await asUser.auth.getUser();
+  if (uerr || !user) return json(401, { ok: false, need: "login", message: "sign in first" });
+  const MINT = Deno.env.get("QLL_MINT") ?? "", AUTHORITY = Deno.env.get("QLL_AUTHORITY") ?? "";
+  const NETWORK = Deno.env.get("QLL_NETWORK") ?? "devnet", RPC = Deno.env.get("QLL_RPC") ?? "https://api.devnet.solana.com";
+  if (!MINT || !AUTHORITY) return json(503, { ok: false, message: "claims are not open yet" });
+  const b = await req.json().catch(() => null);
+  const wallet = typeof b?.wallet === "string" ? b.wallet.trim() : "";
+  const web3 = await import("npm:@solana/web3.js@1.98.0");
+  const spl = await import("npm:@solana/spl-token@0.4.9");
+  let to;
+  try { to = new web3.PublicKey(wallet); if (!web3.PublicKey.isOnCurve(to.toBytes())) throw new Error("not a wallet"); }
+  catch { return json(400, { ok: false, message: "that is not a solana wallet address" }); }
+
+  const { data, error } = await admin.rpc("begin_claim", { p_user: user.id, p_wallet: wallet });
+  if (error) {
+    if ((error.message ?? "").includes("nothing")) return json(409, { ok: false, message: "nothing to claim - your site balance is zero" });
+    throw error;
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  try {
+    const conn = new web3.Connection(RPC, "confirmed");
+    const authority = web3.Keypair.fromSecretKey(Uint8Array.from(JSON.parse(AUTHORITY)));
+    const mint = new web3.PublicKey(MINT);
+    const account = await spl.getOrCreateAssociatedTokenAccount(conn, authority, mint, to);
+    const units = BigInt(Math.round(Number(row.amount) * 1000)) * 1000n;       // 6 decimals
+    const sig = await spl.mintTo(conn, authority, mint, account.address, authority, units);
+    await admin.from("claims").update({ status: "sent", tx: sig, network: NETWORK }).eq("id", row.id);
+    const cluster = NETWORK === "mainnet" ? "" : `?cluster=${NETWORK}`;
+    return json(200, { ok: true, amount: Number(row.amount), tx: sig, explorer: `https://explorer.solana.com/tx/${sig}${cluster}`, message: `${Number(row.amount)} QLL sent to your wallet${NETWORK === "mainnet" ? "" : " on the test network"}` });
+  } catch (e) {
+    console.error("claim", e);
+    await admin.rpc("fail_claim", { p_id: row.id });
+    return json(502, { ok: false, message: "the transfer did not go through - your balance is back on the site, try again" });
+  }
 }

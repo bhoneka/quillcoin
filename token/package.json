@@ -1,0 +1,1 @@
+{ "name": "quillcoin-token", "private": true, "type": "module", "description": "QLL on the Solana test network: mint creation and claim tooling", "dependencies": { "@solana/web3.js": "^1.98.0", "@solana/spl-token": "^0.4.9" } }

@@ -77,6 +77,10 @@
   .video { aspect-ratio:16/9; border:1px solid var(--line); background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; font-size:11px; letter-spacing:.14em; color:var(--dim); text-align:center; padding:20px }
   .video iframe { width:100%; height:100%; border:0 }
   .card .vid { display:block; margin-top:4px } .card .vid a, .list .watch { color:var(--hot); text-decoration:underline }
+  .claim { display:grid; gap:10px; grid-column:1 / -1; margin-top:8px }
+  .claim input { border:2px solid #9945ff } .claim input:focus { border-color:#9945ff }
+  #btn-claim:hover { background:#9945ff; border-color:#9945ff; color:#fff }
+  #claims a { text-decoration:underline; color:#fff }
   .map-cta { display:flex; align-items:center; gap:16px; margin-top:22px } .map-cta span { font-size:11px; letter-spacing:.14em; color:var(--dim) }
   @media (max-width:600px){ .fm-top { flex-direction:column } .chips { justify-content:flex-start } .fm-search input { width:150px } }
   [hidden] { display:none !important }
@@ -189,6 +193,11 @@
         <div class="who" id="who">A COIN NEEDS AN OWNER, SO REDEEMING TAKES A DISCORD SIGN-IN.</div>
         <div class="who" id="mine" hidden></div>
         <div class="grid mine" id="mine-books" hidden></div>
+        <div class="claim" id="claim" hidden>
+          <input id="wallet" class="small" placeholder="YOUR SOLANA WALLET ADDRESS" autocomplete="off" spellcheck="false">
+          <button id="btn-claim" class="ghost">CLAIM TO WALLET · TEST NETWORK</button>
+          <div class="who" id="claims"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -426,19 +435,34 @@ async function showAuth(){
   if (on) { const u = session.user, p = pfpOf(u), im = $('#discord-pfp'); $('#discord-name').textContent = nameOf(u).toUpperCase(); if (p) { im.src = p; im.hidden = false; } else im.hidden = true; }
   updateRedeem();
   who.textContent = FLOW === 'old' ? (on ? '' : 'A COIN NEEDS AN OWNER, SO REDEEMING TAKES A DISCORD SIGN-IN.') : 'DISCORD OWNS THE COIN. YOUR MINECRAFT NAME GOES ON THE CARD.';
-  if (!on) { mine.hidden = true; books.hidden = true; return; }
+  if (!on) { mine.hidden = true; books.hidden = true; $('#claim').hidden = true; return; }
   try {
-    const { data, error } = await sb.from('ledger').select('delta, coin_round, coin_number, at').eq('user_id', session.user.id).order('at', {ascending:false});
+    const { data, error } = await sb.from('ledger').select('delta, reason, coin_round, coin_number, at').eq('user_id', session.user.id).order('at', {ascending:false});
     if (error) throw error;
-    const rows = data || [], bal = rows.reduce((t,e) => t + Number(e.delta), 0);
+    const all = data || [], rows = all.filter(e => e.reason === 'find'), bal = all.reduce((t,e) => t + Number(e.delta), 0);
+    const { data: cl } = await sb.from('claims').select('at, amount, wallet, status, tx, network').eq('user_id', session.user.id).order('at', {ascending:false});
+    const sent = (cl || []).filter(c => c.status === 'sent'), inWallet = sent.reduce((t,c) => t + Number(c.amount), 0);
     mine.hidden = false;
-    mine.textContent = 'YOUR COINS: ' + bal.toFixed(1) + ' QLL' + (rows.length ? ' · ' + rows.length + (rows.length === 1 ? ' BOOK' : ' BOOKS') : ' · NONE YET. GO FIND ONE.');
+    mine.textContent = 'ON THE SITE: ' + bal.toFixed(1) + ' QLL' + (inWallet ? ' · IN YOUR WALLET: ' + inWallet.toFixed(1) + ' QLL' : '') + (rows.length ? ' · ' + rows.length + (rows.length === 1 ? ' BOOK' : ' BOOKS') : ' · NONE YET. GO FIND ONE.');
     books.hidden = !rows.length;
     books.innerHTML = rows.map(e => `<div class="card found"><img class="book" src="book-gold.svg" alt=""><b>R${e.coin_round} COIN ${e.coin_number}</b><span>REDEEMED ${day(e.at)}</span></div>`).join('');
-  } catch(e) { mine.hidden = true; books.hidden = true; }
+    $('#claim').hidden = !(bal > 0 || sent.length);
+    $('#btn-claim').disabled = !(bal > 0);
+    $('#claims').innerHTML = sent.map(c => `${Number(c.amount).toFixed(1)} QLL → ${esc(c.wallet.slice(0, 4))}…${esc(c.wallet.slice(-4))} · ${day(c.at)} · <a href="https://explorer.solana.com/tx/${esc(c.tx)}${c.network === 'mainnet' ? '' : '?cluster=' + esc(c.network)}" target="_blank" rel="noopener">VIEW ↗</a>`).join('<br>');
+  } catch(e) { mine.hidden = true; books.hidden = true; $('#claim').hidden = true; }
 }
 if (sb) { sb.auth.getSession().then(({data}) => { session = data.session; showAuth(); }); sb.auth.onAuthStateChange((_e, s) => { session = s; showAuth(); }); }
 $('#logout').onclick = () => sb.auth.signOut();
+$('#btn-claim').onclick = async () => {
+  const wallet = $('#wallet').value.trim();
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet)) { $('#wallet').classList.add('missing'); $('#msg').textContent = 'THAT IS NOT A SOLANA WALLET ADDRESS.'; return; }
+  $('#wallet').classList.remove('missing'); $('#msg').textContent = 'SENDING…'; $('#btn-claim').disabled = true;
+  try {
+    const r = await fetch(API + '/claim', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify({ wallet }) });
+    const j = await r.json(); $('#msg').textContent = (j.message || '').toUpperCase();
+  } catch(e) { $('#msg').textContent = 'COULD NOT REACH THE SERVER.'; }
+  showAuth();
+};
 $('#btn-discord').onclick = async () => {
   $('#msg').textContent = '…';
   const { error } = await sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: location.origin + location.pathname + location.search } });
