@@ -187,7 +187,11 @@ async function redeem(req: Request) {
     const m = error.message ?? "";
     if (m.includes("blacklisted")) return json(403, { ok: false, message: "this account is on the hider blacklist and can never redeem" });
     if (m.includes("unknown")) return json(404, { ok: false, message: "no coin has this code" });
-    if (m.includes("spent")) return json(409, { ok: false, message: "already redeemed - someone got there first" });
+    if (m.includes("spent")) {
+      const { data: c } = await admin.from("coins").select("round, number, found_at, found_ign, found_name").eq("hash", hash).maybeSingle();
+      const who = c?.found_ign || c?.found_name || "someone", when = c?.found_at ? new Date(c.found_at).toUTCString() : "earlier";
+      return json(409, { ok: false, message: c ? `already redeemed: R${c.round} coin ${c.number} went to ${who} on ${when}` : "already redeemed - someone got there first" });
+    }
     if (m.includes("closed")) return json(409, { ok: false, message: "this round is not open for redemption yet" });
     throw error;
   }
