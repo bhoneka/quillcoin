@@ -71,7 +71,7 @@
   .proof p { text-transform:none; font-size:15px; line-height:1.5; color:#cfcfcf }
   .video { aspect-ratio:16/9; border:1px solid var(--line); background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; font-size:11px; letter-spacing:.14em; color:var(--dim); text-align:center; padding:20px }
   .video iframe { width:100%; height:100%; border:0 }
-  .card .vid { display:block; margin-top:4px } .card.found .vid { color:var(--hot) } .card .vid a { color:var(--hot); text-decoration:underline }
+  .card .vid { display:block; margin-top:4px } .card .vid a, .list .watch { color:var(--hot); text-decoration:underline }
   .map-cta { display:flex; align-items:center; gap:16px; margin-top:22px } .map-cta span { font-size:11px; letter-spacing:.14em; color:var(--dim) }
   @media (max-width:600px){ .fm-top { flex-direction:column } .chips { justify-content:flex-start } .fm-search input { width:150px } }
   [hidden] { display:none !important }
@@ -202,7 +202,7 @@
     <h2>PROOF</h2>
     <div class="proof">
       <div class="video" id="proof-video"><span>THE HIDING RUN, ON CAMERA. COMING WITH ROUND ONE.</span></div>
-      <p>Every hide is recorded start to finish: black screen on the flight, the x-ray dungeon, the book going into the chest. The recording's hash is committed on that coin's card the day it's hidden. The recording itself is sealed until the coin is found, because the flight time alone would say how far out it is.</p>
+      <p>Every hide is recorded start to finish: black screen on the flight, the x-ray dungeon, the book going into the chest. Each recording is linked from its coin's card the day it's hidden, and its hash is committed there too, so it can never be swapped for another cut.</p>
     </div>
   </section>
 
@@ -285,7 +285,7 @@ function renderBoard(){
     if (!coins.length) { b.innerHTML = '<div class="n">NOTHING HIDDEN YET</div>'; return; }
     b.innerHTML = coins.map((c, i) => {
       const f = !!c.found_at;
-      const st = f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT THERE';
+      const st = (f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT THERE') + (c.video_url ? ` · <a href="${esc(c.video_url)}" target="_blank" rel="noopener" class="watch">WATCH THE HIDE ↗</a>` : '');
       return `<li class="${f ? 'found' : 'out'}"><span class="n">#${String(i + 1).padStart(3, '0')}</span><span class="name">COIN ${c.number}<div class="h">${c.hash}</div></span><span class="s">${st}</span></li>`;
     }).join('');
     return;
@@ -295,7 +295,7 @@ function renderBoard(){
   b.innerHTML = coins.map(c => {
     const f = !!c.found_at;
     const st = f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT · SINCE ' + day(c.hidden_at);
-    const vid = c.video_url ? `<span class="vid"><a href="${esc(c.video_url)}" target="_blank" rel="noopener">WATCH THE HIDE ↗</a></span>` : c.video_hash ? `<span class="vid" title="sha256 ${c.video_hash}">VIDEO SEALED</span>` : '';
+    const vid = c.video_url ? `<span class="vid"><a href="${esc(c.video_url)}" target="_blank" rel="noopener" title="recording sha256 ${c.video_hash || ''}">WATCH THE HIDE ↗</a></span>` : '';
     return `<div class="card ${f ? 'found' : 'out'}" title="sha256 ${c.hash}"><img class="book" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><b>COIN ${c.number}</b><span>${st}${vid}</span><i>${c.hash.slice(0,16)}…</i></div>`;
   }).join('');
 }
