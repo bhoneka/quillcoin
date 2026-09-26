@@ -67,13 +67,14 @@ Deno.serve(async (req) => {
     if (req.method === "GET" && path === "/board") return await board(Number(u.searchParams.get("round") ?? "1"));
     if (req.method === "GET" && path === "/ledger") return await ledger();
     if (req.method === "POST" && path === "/hide") return await hide(req);
+    if (req.method === "POST" && path === "/video") return await video(req);
     if (req.method === "POST" && path === "/check") return await check(req);
     if (req.method === "POST" && path === "/redeem") return await redeem(req);
     if (path === "/") {
       return json(200, {
         ok: true,
         service: "quillcoin api",
-        endpoints: ["GET /board?round=N", "GET /ledger", "POST /check {code}", "POST /redeem {code, ign} + Bearer <user token>", "POST /hide (hider tool only)"],
+        endpoints: ["GET /board?round=N", "GET /ledger", "POST /check {code}", "POST /redeem {code, ign} + Bearer <user token>", "POST /hide (hider tool only)", "POST /video {round, number, sha256, url} (hider only)"],
       });
     }
     return json(404, { ok: false, message: "no such endpoint" });
@@ -88,9 +89,10 @@ async function board(round: number) {
   const { data: r } = await admin.from("rounds").select("id, opened_at, closed_at, note").eq("id", round).maybeSingle();
   if (!r) return json(404, { ok: false, message: "no such round" });
   const { data: coins, error } = await admin.from("coins")
-    .select("number, hash, hidden_at, blind, server, found_at, found_ign, found_name, found_x, found_y, found_z").eq("round", round).order("number");
+    .select("number, hash, hidden_at, blind, server, found_at, found_ign, found_name, found_x, found_y, found_z, video_hash, video_url").eq("round", round).order("number");
   if (error) throw error;
-  const list = coins ?? [];
+  const closed = !!(r.closed_at && new Date(r.closed_at) <= new Date());
+  const list = (coins ?? []).map((c) => ({ ...c, video_url: c.found_at || closed ? c.video_url : null }));   // the recording opens with the coin
   return json(200, { ok: true, round: r, coins: list, hidden: list.length, found: list.filter((c) => c.found_at).length });
 }
 
@@ -150,6 +152,21 @@ async function hide(req: Request) {
     throw error;
   }
   return json(201, { ok: true, message: `R${round} coin ${number} committed` });
+}
+
+/** Hider only: commit a recording's hash for a coin (before the round opens), and the link that is shown once the coin is found. */
+async function video(req: Request) {
+  const auth = req.headers.get("authorization") ?? "";
+  if (!HIDER_KEY || !auth.startsWith("Bearer ") || !sameSecret(auth.slice(7).trim(), HIDER_KEY)) return json(401, { ok: false, message: "bad hider key" });
+  const b = await req.json().catch(() => null);
+  const round = Number(b?.round), number = Number(b?.number), sha = String(b?.sha256 ?? "").toLowerCase(), url = typeof b?.url === "string" ? b.url.slice(0, 300) : null;
+  if (!Number.isInteger(round) || !Number.isInteger(number) || !/^[0-9a-f]{64}$/.test(sha)) return json(400, { ok: false, message: "bad fields" });
+  const { data: c } = await admin.from("coins").select("video_hash").eq("round", round).eq("number", number).maybeSingle();
+  if (!c) return json(404, { ok: false, message: "no such coin" });
+  if (c.video_hash && c.video_hash !== sha) return json(409, { ok: false, message: "a different recording is already committed for this coin" });
+  const { error } = await admin.from("coins").update({ video_hash: sha, video_url: url }).eq("round", round).eq("number", number);
+  if (error) throw error;
+  return json(200, { ok: true, message: `recording committed for R${round} coin ${number}` });
 }
 
 async function check(req: Request) {
