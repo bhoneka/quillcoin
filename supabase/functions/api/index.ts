@@ -91,8 +91,7 @@ async function board(round: number) {
   const { data: coins, error } = await admin.from("coins")
     .select("number, hash, hidden_at, blind, server, found_at, found_ign, found_name, found_x, found_y, found_z, video_hash, video_url").eq("round", round).order("number");
   if (error) throw error;
-  const closed = !!(r.closed_at && new Date(r.closed_at) <= new Date());
-  const list = (coins ?? []).map((c) => ({ ...c, video_url: c.found_at || closed ? c.video_url : null }));   // the recording opens with the coin
+  const list = coins ?? [];                                                   // recordings are public from the day of the hide (Jose's call: the small distance hint is worth the proof)
   return json(200, { ok: true, round: r, coins: list, hidden: list.length, found: list.filter((c) => c.found_at).length });
 }
 
