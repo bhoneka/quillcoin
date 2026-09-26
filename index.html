@@ -198,11 +198,12 @@
     <div class="map-cta"><button class="ghost" id="map-teaser">OPEN THE MAP ↗</button><span id="map-count">–</span></div>
   </section>
 
-  <section id="proof">
-    <h2>PROOF</h2>
+  <section id="proof" hidden>
+    <h2 id="proof-title">PROOF</h2>
     <div class="proof">
-      <div class="video" id="proof-video"><span>THE HIDING RUN, ON CAMERA. COMING WITH ROUND ONE.</span></div>
-      <p>Every hide is recorded start to finish: black screen on the flight, the x-ray dungeon, the book going into the chest. Each recording is linked from its coin's card the day it's hidden, and its hash is committed there too, so it can never be swapped for another cut.</p>
+      <div class="video" id="proof-video"></div>
+      <p class="rstat" id="proof-meta"></p>
+      <p>Every hide is recorded start to finish: black screen on the flight, the x-ray dungeon, the book going into the chest. The recording's hash is committed on the coin's card the day it's hidden, so it can never be swapped for another cut.</p>
     </div>
   </section>
 
@@ -253,7 +254,18 @@ const ROUND = Math.max(0, parseInt(new URLSearchParams(location.search).get('rou
 const $ = s => document.querySelector(s);
 const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_ANON) : null;
-if (window.QUILL_PROOF_VIDEO) $('#proof-video').innerHTML = `<iframe src="${window.QUILL_PROOF_VIDEO}" allow="fullscreen" loading="lazy"></iframe>`;
+// WATCH THE HIDE opens that coin's recording in the proof section instead of leaving the page (YouTube links embed, anything else opens in a tab)
+const embedUrl = u => { const m = String(u).match(/(?:youtu\.be\/|[?&]v=|\/embed\/)([\w-]{6,})/); return m ? 'https://www.youtube.com/embed/' + m[1] + '?autoplay=1' : null; };
+function openHide(number){
+  const c = lastCoins.find(x => x.number === number); if (!c || !c.video_url) return;
+  const e = embedUrl(c.video_url); if (!e) { window.open(c.video_url, '_blank', 'noopener'); return; }
+  $('#proof').hidden = false; $('#proof-title').textContent = 'PROOF · R' + ROUND + ' COIN ' + c.number;
+  $('#proof-video').innerHTML = `<iframe src="${e}" allow="autoplay; fullscreen" loading="lazy"></iframe>`;
+  $('#proof-meta').innerHTML = 'HIDDEN ' + day(c.hidden_at) + (c.video_hash ? ' · RECORDING SHA256 <span style="text-transform:none">' + c.video_hash.slice(0, 16) + '…</span>' : '') + ` · <a href="${esc(c.video_url)}" target="_blank" rel="noopener" style="text-decoration:underline">OPEN ON YOUTUBE ↗</a>`;
+  $('#proof').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+document.addEventListener('click', e => { const a = e.target.closest('a[data-hide]'); if (a) { e.preventDefault(); openHide(+a.dataset.hide); } });
+if (window.QUILL_PROOF_VIDEO) { $('#proof').hidden = false; $('#proof-video').innerHTML = `<iframe src="${window.QUILL_PROOF_VIDEO}" allow="fullscreen" loading="lazy"></iframe>`; }
 $('#lnk-hashes').href = API + '/board?round=' + ROUND; $('#lnk-ledger').href = API + '/ledger';
 $('#badge').textContent = 'R' + ROUND; $('#round-title').textContent = ROUND === 0 ? 'TEST ROUND' : 'ROUND ' + ROUND;
 const since = iso => { if(!iso) return '–'; const d = (Date.now() - Date.parse(iso))/1000; return d<3600 ? Math.floor(d/60)+'M' : d<86400 ? Math.floor(d/3600)+'H' : Math.floor(d/86400)+'D'; };
@@ -285,7 +297,7 @@ function renderBoard(){
     if (!coins.length) { b.innerHTML = '<div class="n">NOTHING HIDDEN YET</div>'; return; }
     b.innerHTML = coins.map((c, i) => {
       const f = !!c.found_at;
-      const st = (f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT THERE') + (c.video_url ? ` · <a href="${esc(c.video_url)}" target="_blank" rel="noopener" class="watch">WATCH THE HIDE ↗</a>` : '');
+      const st = (f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT THERE') + (c.video_url ? ` · <a href="${esc(c.video_url)}" data-hide="${c.number}" class="watch">WATCH THE HIDE ↗</a>` : '');
       return `<li class="${f ? 'found' : 'out'}"><span class="n">#${String(i + 1).padStart(3, '0')}</span><span class="name">COIN ${c.number}<div class="h">${c.hash}</div></span><span class="s">${st}</span></li>`;
     }).join('');
     return;
@@ -295,7 +307,7 @@ function renderBoard(){
   b.innerHTML = coins.map(c => {
     const f = !!c.found_at;
     const st = f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT · SINCE ' + day(c.hidden_at);
-    const vid = c.video_url ? `<span class="vid"><a href="${esc(c.video_url)}" target="_blank" rel="noopener" title="recording sha256 ${c.video_hash || ''}">WATCH THE HIDE ↗</a></span>` : '';
+    const vid = c.video_url ? `<span class="vid"><a href="${esc(c.video_url)}" data-hide="${c.number}" title="recording sha256 ${c.video_hash || ''}">WATCH THE HIDE ↗</a></span>` : '';
     return `<div class="card ${f ? 'found' : 'out'}" title="sha256 ${c.hash}"><img class="book" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><b>COIN ${c.number}</b><span>${st}${vid}</span><i>${c.hash.slice(0,16)}…</i></div>`;
   }).join('');
 }
