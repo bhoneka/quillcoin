@@ -95,7 +95,9 @@
   .card.empty { justify-content:center; align-items:center; color:var(--dim); font-size:12px; letter-spacing:.14em }
   .grid.mine { grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); grid-column:1 / -1 }
   .list { list-style:none }
-  .list li { display:grid; grid-template-columns:40px 1fr auto; gap:14px; align-items:baseline; padding:7px 0; font-size:clamp(18px,3.4vw,30px); line-height:1.15; border-top:1px solid var(--line) }
+  .list li { display:grid; grid-template-columns:40px 44px 1fr auto; gap:14px; align-items:center; padding:9px 0; font-size:clamp(18px,3.4vw,30px); line-height:1.15; border-top:1px solid var(--line) }
+  .list .lbook { width:40px; height:40px; image-rendering:pixelated; display:block }
+  .list li.found .lbook { filter:drop-shadow(0 0 6px rgba(255,212,0,.45)) }
   .list li:first-child { border-top:0 }
   .list .n { font-size:11px; color:var(--dim); letter-spacing:.1em }
   .list .s { font-size:11px; letter-spacing:.1em; color:var(--dim); white-space:nowrap }
@@ -150,7 +152,7 @@
   .rules b { color:#fff }
   footer { padding:26px 0; font-size:11px; color:var(--dim); letter-spacing:.12em; display:flex; gap:22px; flex-wrap:wrap }
   footer a:hover { color:var(--hot) }
-  @media (max-width:600px){ .grid { grid-template-columns:repeat(2, 1fr) } .list li { grid-template-columns:32px 1fr } .list .s { grid-column:2 } }
+  @media (max-width:600px){ .grid { grid-template-columns:repeat(2, 1fr) } .list li { grid-template-columns:32px 36px 1fr } .list .lbook { width:32px; height:32px } .list .s { grid-column:3 } }
 </style>
 </head>
 <body>
@@ -303,7 +305,7 @@ function renderBoard(){
     b.innerHTML = coins.map((c, i) => {
       const f = !!c.found_at;
       const st = (f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT THERE') + (c.video_url ? ` · <a href="${esc(c.video_url)}" data-hide="${c.number}" class="watch">WATCH THE HIDE ↗</a>` : '');
-      return `<li class="${f ? 'found' : 'out'}"><span class="n">#${String(i + 1).padStart(3, '0')}</span><span class="name">COIN ${c.number}<div class="h">${c.hash}</div></span><span class="s">${st}</span></li>`;
+      return `<li class="${f ? 'found' : 'out'}"><span class="n">#${String(i + 1).padStart(3, '0')}</span><img class="lbook" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><span class="name">COIN ${c.number}<div class="h">${c.hash}</div></span><span class="s">${st}</span></li>`;
     }).join('');
     return;
   }
