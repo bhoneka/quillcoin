@@ -38,9 +38,9 @@
   .bar .logo { width:22px; height:22px; display:block; image-rendering:pixelated }
   /* the map drifts very slowly behind the page; the vignette on top of it stays put */
   body::before { content:""; position:fixed; inset:-6%; z-index:0; pointer-events:none; background:#000 url(map.jpg) center / cover no-repeat; animation:drift 140s ease-in-out infinite alternate; will-change:transform }
-  body::after { content:""; position:fixed; inset:0; z-index:0; pointer-events:none; background:radial-gradient(circle at 50% 44%, rgba(0,0,0,0) 0, rgba(0,0,0,.15) 20vmax, rgba(0,0,0,.7) 34vmax, #000 48vmax) }
+  body::after { content:""; position:fixed; inset:0; z-index:0; pointer-events:none; background:radial-gradient(circle at 50% 42%, rgba(0,0,0,0) 0, rgba(0,0,0,.45) 16vmax, rgba(0,0,0,.92) 30vmax, #000 40vmax) }
   @keyframes drift { from { transform:translate(-2%, -1.5%) scale(1.02) } to { transform:translate(2%, 1.5%) scale(1.06) } }
-  @media (max-width:700px){ body::before { background-image:url(map-small.jpg) } body::after { background:radial-gradient(circle at 50% 40%, rgba(0,0,0,0) 0, rgba(0,0,0,.3) 26vmax, #000 50vmax) } }
+  @media (max-width:700px){ body::before { background-image:url(map-small.jpg) } body::after { background:radial-gradient(circle at 50% 38%, rgba(0,0,0,0) 0, rgba(0,0,0,.5) 22vmax, #000 44vmax) } }
   @media (prefers-reduced-motion: reduce){ body::before { animation:none } }
   body.mapmode main, body.mapmode::before, body.mapmode::after { display:none }
   #fullmap { position:fixed; inset:0; z-index:4; background:#000 }
@@ -334,7 +334,7 @@ function ensureMap(){
   L.circleMarker(toLatLng(0, 0), { radius: 5, color: '#ffd400', fillColor: '#ffd400', fillOpacity: 1, weight: 0 }).addTo(map).bindPopup('SPAWN<br>0, 0');
   map.on('mousemove', e => showCoords(toBlock(e.latlng)));
   map.on('move', () => { if (matchMedia('(hover: none)').matches) showCoords(toBlock(map.getCenter())); });
-  map.setView(toLatLng(0, 0), 3);
+  map.fitBounds(L.latLngBounds(toLatLng(-150000, -110000), toLatLng(150000, 160000)), { animate: false });   // opens on the whole glasses-and-suit figure, whatever the screen size
   return map;
 }
 function showCoords(b){ $('#c-ow').innerHTML = 'OVERWORLD <b>' + b.x + ' ' + b.z + '</b>'; $('#c-ne').innerHTML = 'NETHER <b>' + Math.round(b.x / 8) + ' ' + Math.round(b.z / 8) + '</b>'; }
