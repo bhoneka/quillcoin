@@ -37,9 +37,9 @@
   .bar .brand { display:flex; align-items:center; gap:9px }
   .bar .logo { width:22px; height:22px; display:block; image-rendering:pixelated }
   /* the map drifts very slowly behind the page; the vignette on top of it stays put */
-  body::before { content:""; position:fixed; inset:-22%; z-index:0; pointer-events:none; background:#000 url(map.jpg) center / cover no-repeat; animation:drift 140s ease-in-out infinite alternate; will-change:transform }
+  body::before { content:""; position:fixed; inset:-6%; z-index:0; pointer-events:none; background:#000 url(map.jpg) center / cover no-repeat; animation:drift 140s ease-in-out infinite alternate; will-change:transform }
   body::after { content:""; position:fixed; inset:0; z-index:0; pointer-events:none; background:radial-gradient(circle at 50% 42%, rgba(0,0,0,0) 0, rgba(0,0,0,.45) 16vmax, rgba(0,0,0,.92) 30vmax, #000 40vmax) }
-  @keyframes drift { from { transform:translate(-3%, calc(-2% + var(--py, 0px))) scale(1.04) } to { transform:translate(3%, calc(2% + var(--py, 0px))) scale(1.1) } }   /* --py: scroll parallax */
+  @keyframes drift { from { transform:translate(-2%, -1.5%) scale(1.02) } to { transform:translate(2%, 1.5%) scale(1.06) } }
   @media (max-width:700px){ body::before { background-image:url(map-small.jpg) } body::after { background:radial-gradient(circle at 50% 38%, rgba(0,0,0,0) 0, rgba(0,0,0,.5) 22vmax, #000 44vmax) } }
   @media (prefers-reduced-motion: reduce){ body::before { animation:none } }
   body.mapmode main, body.mapmode::before, body.mapmode::after { display:none }
@@ -252,11 +252,6 @@ const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 const API = SB_URL + '/functions/v1/api';
 const ROUND = Math.max(0, parseInt(new URLSearchParams(location.search).get('round') || '1', 10) || 0);
 const $ = s => document.querySelector(s);
-// the background map slides with the page at a fraction of its speed: across the whole scroll it moves about a fifth of the screen
-(function(){ const root = document.documentElement; let raf = 0;
-  const update = () => { raf = 0; const max = root.scrollHeight - innerHeight; const f = max > 0 ? Math.min(1, scrollY / max) : 0; root.style.setProperty('--py', (-f * innerHeight * 0.2) + 'px'); };
-  addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(update); }, { passive: true }); addEventListener('resize', update); update();
-})();
 const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_ANON) : null;
 // WATCH THE HIDE opens that coin's recording in the proof section instead of leaving the page (YouTube links embed, anything else opens in a tab)
