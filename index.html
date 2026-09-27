@@ -108,7 +108,8 @@
   .cf > div, .cfull { padding:12px 14px } .cf > div { border-right:1px solid var(--line); border-bottom:1px solid var(--line); margin:0 -1px -1px 0 }
   .cf span, .cfull span { display:block; font-size:10px; letter-spacing:.16em; color:var(--dim); margin-bottom:6px }
   .cf b { font-size:15px; letter-spacing:.06em; font-weight:400 } .cfull { border:1px solid var(--line) } .cfull .hash { font-size:12px; text-transform:none; letter-spacing:.02em; word-break:break-all; font-weight:400 }
-  .gl { display:inline-block; vertical-align:middle; font-style:normal } .gl canvas { display:block; image-rendering:pixelated }
+  .gl { display:inline-block; vertical-align:middle; font-style:normal; max-width:100% } .gl canvas { display:block; image-rendering:pixelated; max-width:100%; height:auto }
+  .cf > div { min-width:0; overflow:hidden }
   #coin-map { height:280px; border:1px solid var(--line); background:#000 } #coin-map.grey .leaflet-tile-pane { filter:grayscale(1) brightness(.5) } #coin-map .leaflet-tile-pane { filter:none }
   .map-cta { display:flex; align-items:center; gap:16px; margin-top:22px } .map-cta span { font-size:11px; letter-spacing:.14em; color:var(--dim) }
   @media (max-width:600px){ .fm-top { flex-direction:column } .chips { justify-content:flex-start } .fm-search input { width:150px } }
@@ -430,13 +431,28 @@ let mapTimers = [];
 // ---- one coin, everything known about it. What nobody knows yet is written in glyphs that never settle.
 const stamp = iso => new Date(iso).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
 let coinTimers = [], miniMap = null;
-function glyphs(el, count){
-  const G = 5, H = 7, S = 3, GAP = 4, c = document.createElement('canvas'); c.width = count * (G * S + GAP); c.height = H * S; el.innerHTML = ''; el.appendChild(c);
+function glyphs(el, pattern){
+  // pattern: g = one glyph, anything else is punctuation drawn as-is, so unknown coordinates still read as "x, y, z"
+  const G = 5, H = 7, S = 2, GAP = 2, cells = [], marks = []; let x = 0;
+  for (const ch of pattern) {
+    if (ch === 'g') { cells.push({ x, g: null }); x += G * S + GAP; }
+    else { marks.push({ x, ch }); x += (ch === ' ' ? 3 : ch === '-' ? 4 : 2) * S + GAP; }
+  }
+  const c = document.createElement('canvas'); c.width = Math.max(1, x - GAP); c.height = H * S + S; el.innerHTML = ''; el.appendChild(c);
   const ctx = c.getContext('2d');
   const one = () => Array.from({ length: H }, () => { const r = [Math.random() < .5, Math.random() < .45, Math.random() < .55]; return [r[0], r[1], r[2], r[1], r[0]]; });
-  const cells = Array.from({ length: count }, one);
-  const draw = () => { ctx.clearRect(0, 0, c.width, c.height); cells.forEach((g, i) => g.forEach((row, y) => row.forEach((on, x) => { if (on) { ctx.fillStyle = (x + y + i) % 5 ? '#9a9a9a' : '#e6e6e6'; ctx.fillRect(i * (G * S + GAP) + x * S, y * S, S, S); } }))); };
-  draw(); coinTimers.push(setInterval(() => { cells[Math.floor(Math.random() * count)] = one(); if (Math.random() < .35) cells[Math.floor(Math.random() * count)] = one(); draw(); }, 85));
+  cells.forEach(k => k.g = one());
+  const draw = () => {
+    ctx.clearRect(0, 0, c.width, c.height);
+    cells.forEach((k, i) => k.g.forEach((row, y) => row.forEach((on, cx) => { if (on) { ctx.fillStyle = (cx + y + i) % 5 ? '#9a9a9a' : '#e6e6e6'; ctx.fillRect(k.x + cx * S, y * S, S, S); } })));
+    ctx.fillStyle = '#9a9a9a';
+    marks.forEach(m => {
+      if (m.ch === ',') ctx.fillRect(m.x, (H - 1) * S, S, S * 2);
+      else if (m.ch === '-') ctx.fillRect(m.x, 3 * S, 3 * S, S);
+      else if (m.ch === ':') { ctx.fillRect(m.x, 2 * S, S, S); ctx.fillRect(m.x, 5 * S, S, S); }
+    });
+  };
+  draw(); coinTimers.push(setInterval(() => { cells[Math.floor(Math.random() * cells.length)].g = one(); if (Math.random() < .35) cells[Math.floor(Math.random() * cells.length)].g = one(); draw(); }, 85));
 }
 function closeCoin(){
   coinTimers.forEach(clearInterval); coinTimers = []; if (miniMap) { miniMap.remove(); miniMap = null; }
@@ -452,12 +468,12 @@ function openCoin(n){
   sheet.innerHTML = `
     <div class="ch"><img class="bk" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><div><h3>ROUND ${ROUND} · COIN ${c.number}</h3><p class="${f ? 'ok' : ''}">${f ? head(c.found_ign) + 'FOUND BY ' + finder(c) : 'STILL OUT THERE'}</p></div><a class="x" id="coin-x" title="close">✕</a></div>
     <div class="cf">
-      <div><span>COORDINATES</span><b>${placed ? c.found_x + ', ' + (Number.isInteger(c.found_y) ? c.found_y + ', ' : '') + c.found_z : '<i class="gl" data-n="13"></i>'}</b></div>
-      <div><span>NETHER</span><b>${placed ? Math.round(c.found_x / 8) + ', ' + Math.round(c.found_z / 8) : '<i class="gl" data-n="9"></i>'}</b></div>
+      <div><span>COORDINATES</span><b>${placed ? c.found_x + ', ' + (Number.isInteger(c.found_y) ? c.found_y + ', ' : '') + c.found_z : '<i class="gl" data-p="ggggg, gg, ggggg"></i>'}</b></div>
+      <div><span>NETHER</span><b>${placed ? Math.round(c.found_x / 8) + ', ' + Math.round(c.found_z / 8) : '<i class="gl" data-p="gggg, gggg"></i>'}</b></div>
       <div><span>HIDDEN</span><b>${stamp(c.hidden_at)}</b></div>
-      <div><span>FOUND</span><b>${f ? stamp(c.found_at) : '<i class="gl" data-n="12"></i>'}</b></div>
+      <div><span>FOUND</span><b>${f ? stamp(c.found_at) : '<i class="gl" data-p="gggg-gg-gg gg:gg:gg"></i>'}</b></div>
       <div><span>${f ? 'WAS OUT THERE FOR' : 'OUT THERE FOR'}</span><b>${days} ${days === 1 ? 'DAY' : 'DAYS'}</b></div>
-      <div><span>FOUND BY</span><b>${f ? head(c.found_ign) + finder(c) : '<i class="gl" data-n="8"></i>'}</b></div>
+      <div><span>FOUND BY</span><b>${f ? head(c.found_ign) + finder(c) : '<i class="gl" data-p="ggggggg"></i>'}</b></div>
       <div><span>HOW IT WAS HIDDEN</span><b>${c.blind ? 'BLIND RUN' : 'BY HAND'}${c.server ? ' · ' + esc(c.server.toUpperCase()) : ''}</b></div>
       <div><span>WORTH</span><b>1 QLL</b></div>
     </div>
@@ -468,7 +484,7 @@ function openCoin(n){
         : `<div class="cfull"><span>THE HIDE, ON CAMERA</span><b style="font-weight:400;color:var(--dim)">NO RECORDING COMMITTED FOR THIS COIN</b></div>`}
     <div class="row">${placed ? '<button class="ghost" id="coin-open-map">OPEN IN THE MAP ↗</button>' : '<button class="ghost" id="coin-open-map">OPEN THE MAP ↗</button>'}</div>`;
   $('#coin').hidden = false; $('#coin').scrollTop = 0;
-  sheet.querySelectorAll('.gl').forEach(el => glyphs(el, +el.dataset.n));
+  sheet.querySelectorAll('.gl').forEach(el => glyphs(el, el.dataset.p));
   $('#coin-x').onclick = closeCoin;
   $('#coin-open-map').onclick = () => { closeCoin(); setMapMode(true); if (placed) setTimeout(() => goTo(c.found_x, c.found_z), 1000); };
   // a small map of its own: the found spot in colour, or the whole ring in grey with the book still wandering
