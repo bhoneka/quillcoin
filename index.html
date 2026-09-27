@@ -96,6 +96,20 @@
   .claim input { border:2px solid #9945ff } .claim input:focus { border-color:#9945ff }
   #btn-claim:hover { background:#9945ff; border-color:#9945ff; color:#fff }
   #claims a { text-decoration:underline; color:#fff }
+  .card[data-n], .list li[data-n] { cursor:pointer } .card[data-n]:hover { border-color:#fff } .list li[data-n]:hover .name { color:#fff }
+  .modal { position:fixed; inset:0; z-index:1200; background:rgba(0,0,0,.84); display:flex; align-items:flex-start; justify-content:center; overflow:auto; padding:64px 14px 40px }
+  .sheet { width:min(760px, 100%); background:#000; border:1px solid #fff; padding:22px; display:grid; gap:18px }
+  .sheet .ch { display:flex; align-items:center; gap:16px } .sheet .ch img.bk { width:72px; height:72px; image-rendering:pixelated }
+  .sheet h3 { font-family:"Monocraft", ui-monospace, monospace; font-weight:400; font-size:clamp(20px,4vw,30px); color:var(--hot); line-height:1.1 }
+  .sheet.out h3 { color:#bdbdbd } .sheet .ch p { font-size:12px; letter-spacing:.14em; color:var(--dim); margin-top:6px } .sheet .ch p.ok { color:var(--found) }
+  .sheet .x { margin-left:auto; align-self:flex-start; cursor:pointer; color:var(--dim); font-size:18px; padding:4px 8px } .sheet .x:hover { color:#fff }
+  .sheet .head { width:16px; height:16px; border:0; vertical-align:middle; margin-right:6px }
+  .cf { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); border:1px solid var(--line) }
+  .cf > div, .cfull { padding:12px 14px } .cf > div { border-right:1px solid var(--line); border-bottom:1px solid var(--line); margin:0 -1px -1px 0 }
+  .cf span, .cfull span { display:block; font-size:10px; letter-spacing:.16em; color:var(--dim); margin-bottom:6px }
+  .cf b { font-size:15px; letter-spacing:.06em; font-weight:400 } .cfull { border:1px solid var(--line) } .cfull .hash { font-size:12px; text-transform:none; letter-spacing:.02em; word-break:break-all; font-weight:400 }
+  .gl { display:inline-block; vertical-align:middle; font-style:normal } .gl canvas { display:block; image-rendering:pixelated }
+  #coin-map { height:280px; border:1px solid var(--line); background:#000 } #coin-map.grey .leaflet-tile-pane { filter:grayscale(1) brightness(.5) } #coin-map .leaflet-tile-pane { filter:none }
   .map-cta { display:flex; align-items:center; gap:16px; margin-top:22px } .map-cta span { font-size:11px; letter-spacing:.14em; color:var(--dim) }
   @media (max-width:600px){ .fm-top { flex-direction:column } .chips { justify-content:flex-start } .fm-search input { width:150px } }
   [hidden] { display:none !important }
@@ -187,6 +201,7 @@
   <div class="pop-books" id="acc-books"></div>
   <div class="pop-actions"><button class="ghost" id="acc-claim">CLAIM TO WALLET</button><button class="ghost" id="acc-out">SIGN OUT</button></div>
 </div>
+<div id="coin" class="modal" hidden><div class="sheet" id="coin-sheet"></div></div>
 <div id="fullmap" hidden>
   <div id="leaf"></div>
   <div class="fm-top">
@@ -321,6 +336,7 @@ async function loadBoard(){
       : open ? 'OPEN SINCE ' + day(rd.opened_at) + ' · ALL HASHES COMMITTED BEFORE THAT DAY'
       : 'NOT OPEN YET · HASHES BEING COMMITTED';
     lastCoins = coins; renderBoard(); renderMap();
+    if (!coinLinkDone) { coinLinkDone = true; const m = location.hash.match(/^#coin=(\d+)$/); if (m) openCoin(+m[1]); }
   } catch(e) { $('#board').className = 'grid'; $('#board').innerHTML = '<div class="card empty">BOARD UNAVAILABLE</div>'; $('#round-status').textContent = ''; }
 }
 const norm = v => v.toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/^QLL/,'').replace(/(.{5})/g,'$1-').replace(/-$/,'');
@@ -337,7 +353,7 @@ function renderBoard(){
     b.innerHTML = coins.map((c, i) => {
       const f = !!c.found_at;
       const st = (f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT THERE') + (c.video_url ? ` · <a href="${esc(c.video_url)}" data-hide="${c.number}" class="watch">WATCH THE HIDE ↗</a>` : '');
-      return `<li class="${f ? 'found' : 'out'}"><span class="n">#${String(i + 1).padStart(3, '0')}</span><img class="lbook" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><span class="name">COIN ${c.number}<div class="h">${c.hash}</div></span><span class="s">${st}</span></li>`;
+      return `<li class="${f ? 'found' : 'out'}" data-n="${c.number}"><span class="n">#${String(i + 1).padStart(3, '0')}</span><img class="lbook" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><span class="name">COIN ${c.number}<div class="h">${c.hash}</div></span><span class="s">${st}</span></li>`;
     }).join('');
     return;
   }
@@ -347,7 +363,7 @@ function renderBoard(){
     const f = !!c.found_at;
     const st = f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT · SINCE ' + day(c.hidden_at);
     const vid = c.video_url ? `<span class="vid"><a href="${esc(c.video_url)}" data-hide="${c.number}" title="recording sha256 ${c.video_hash || ''}">WATCH THE HIDE ↗</a></span>` : '';
-    return `<div class="card ${f ? 'found' : 'out'}" title="sha256 ${c.hash}"><img class="book" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><b>COIN ${c.number}</b><span>${st}${vid}</span><i>${c.hash.slice(0,16)}…</i></div>`;
+    return `<div class="card ${f ? 'found' : 'out'}" data-n="${c.number}" title="sha256 ${c.hash}"><img class="book" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><b>COIN ${c.number}</b><span>${st}${vid}</span><i>${c.hash.slice(0,16)}…</i></div>`;
   }).join('');
 }
 // ---- the map: Leaflet over 2b2t.place's tiles (their 1M² world download is CC0; ask them before launch). 512 px tiles, level L = 2^L blocks per pixel, level 0 = one block per pixel.
@@ -381,7 +397,7 @@ function renderMap(){
   $('#map-count').textContent = foundOnes().length + ' ON THE MAP · ' + lastCoins.filter(c => !c.found_at).length + ' STILL OUT';
   if (!map) return;
   markers.forEach(m => m.remove()); markers = [];
-  foundOnes().forEach(c => { markers.push(L.marker(toLatLng(c.found_x, c.found_z), { icon: bookIcon }).addTo(map).bindPopup(`R${ROUND} COIN ${c.number}<br>${finder(c)}<br>${c.found_x}, ${c.found_z}`)); });
+  foundOnes().forEach(c => { markers.push(L.marker(toLatLng(c.found_x, c.found_z), { icon: bookIcon }).addTo(map).bindTooltip(`R${ROUND} COIN ${c.number} · ${finder(c)}<br>${c.found_x}, ${c.found_z}`, { direction: 'top', offset: [0, -12], className: 'ghost-tip' }).on('click', () => openCoin(c.number))); });
   if (document.body.classList.contains('mapmode')) startGhosts();      // the board may arrive after the map opened
 }
 // every still-hidden book is a grey ghost that teleports around the ring it could be in - nobody knows where they really are
@@ -391,7 +407,7 @@ function startGhosts(){
   stopGhosts();
   const hidden = lastCoins.filter(c => !c.found_at);
   ghosts = hidden.map(c => L.marker(ringSpot(), { icon: ghostIcon, keyboard: false }).addTo(map)
-    .bindTooltip(`R${ROUND} COIN ${c.number} · STILL OUT · HIDDEN ${day(c.hidden_at)}<br><span class="dim">NOT ITS REAL SPOT. NOBODY KNOWS THAT.</span>`, { direction: 'top', offset: [0, -10], className: 'ghost-tip' }));
+    .bindTooltip(`R${ROUND} COIN ${c.number} · STILL OUT · HIDDEN ${day(c.hidden_at)}<br><span class="dim">NOT ITS REAL SPOT. NOBODY KNOWS THAT.</span>`, { direction: 'top', offset: [0, -10], className: 'ghost-tip' }).on('click', () => openCoin(c.number)));
   if (!ghosts.length) return;
   ghostTimer = setInterval(() => {
     const g = ghosts[Math.floor(Math.random() * ghosts.length)], el = g.getElement(); if (!el) return;
@@ -411,6 +427,66 @@ function backgroundView(){
   return { zoom: Math.log2(1024 / bpp), center: toLatLng(Math.round(-tx * bpp), Math.round((-ty + leafTop / 2) * bpp)) };
 }
 let mapTimers = [];
+// ---- one coin, everything known about it. What nobody knows yet is written in glyphs that never settle.
+const stamp = iso => new Date(iso).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+let coinTimers = [], miniMap = null;
+function glyphs(el, count){
+  const G = 5, H = 7, S = 3, GAP = 4, c = document.createElement('canvas'); c.width = count * (G * S + GAP); c.height = H * S; el.innerHTML = ''; el.appendChild(c);
+  const ctx = c.getContext('2d');
+  const one = () => Array.from({ length: H }, () => { const r = [Math.random() < .5, Math.random() < .45, Math.random() < .55]; return [r[0], r[1], r[2], r[1], r[0]]; });
+  const cells = Array.from({ length: count }, one);
+  const draw = () => { ctx.clearRect(0, 0, c.width, c.height); cells.forEach((g, i) => g.forEach((row, y) => row.forEach((on, x) => { if (on) { ctx.fillStyle = (x + y + i) % 5 ? '#9a9a9a' : '#e6e6e6'; ctx.fillRect(i * (G * S + GAP) + x * S, y * S, S, S); } }))); };
+  draw(); coinTimers.push(setInterval(() => { cells[Math.floor(Math.random() * count)] = one(); if (Math.random() < .35) cells[Math.floor(Math.random() * count)] = one(); draw(); }, 85));
+}
+function closeCoin(){
+  coinTimers.forEach(clearInterval); coinTimers = []; if (miniMap) { miniMap.remove(); miniMap = null; }
+  $('#coin').hidden = true; if (location.hash.startsWith('#coin')) history.replaceState(null, '', location.pathname + location.search);
+}
+function openCoin(n){
+  const c = lastCoins.find(x => x.number === n); if (!c) return;
+  closeCoin();
+  const f = !!c.found_at, placed = f && Number.isInteger(c.found_x) && Number.isInteger(c.found_z);
+  const days = Math.max(0, Math.floor(((f ? Date.parse(c.found_at) : Date.now()) - Date.parse(c.hidden_at)) / 864e5));
+  const e = c.video_url ? embedUrl(c.video_url) : null;
+  const sheet = $('#coin-sheet'); sheet.className = 'sheet ' + (f ? 'found' : 'out');
+  sheet.innerHTML = `
+    <div class="ch"><img class="bk" src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt=""><div><h3>ROUND ${ROUND} · COIN ${c.number}</h3><p class="${f ? 'ok' : ''}">${f ? head(c.found_ign) + 'FOUND BY ' + finder(c) : 'STILL OUT THERE'}</p></div><a class="x" id="coin-x" title="close">✕</a></div>
+    <div class="cf">
+      <div><span>COORDINATES</span><b>${placed ? c.found_x + ', ' + (Number.isInteger(c.found_y) ? c.found_y + ', ' : '') + c.found_z : '<i class="gl" data-n="13"></i>'}</b></div>
+      <div><span>NETHER</span><b>${placed ? Math.round(c.found_x / 8) + ', ' + Math.round(c.found_z / 8) : '<i class="gl" data-n="9"></i>'}</b></div>
+      <div><span>HIDDEN</span><b>${stamp(c.hidden_at)}</b></div>
+      <div><span>FOUND</span><b>${f ? stamp(c.found_at) : '<i class="gl" data-n="12"></i>'}</b></div>
+      <div><span>${f ? 'WAS OUT THERE FOR' : 'OUT THERE FOR'}</span><b>${days} ${days === 1 ? 'DAY' : 'DAYS'}</b></div>
+      <div><span>FOUND BY</span><b>${f ? head(c.found_ign) + finder(c) : '<i class="gl" data-n="8"></i>'}</b></div>
+      <div><span>HOW IT WAS HIDDEN</span><b>${c.blind ? 'BLIND RUN' : 'BY HAND'}${c.server ? ' · ' + esc(c.server.toUpperCase()) : ''}</b></div>
+      <div><span>WORTH</span><b>1 QLL</b></div>
+    </div>
+    <div class="cfull"><span>COMMITTED BEFORE THE HUNT · SHA256 OF THE CODE</span><b class="hash">${c.hash}</b></div>
+    <div id="coin-map" class="${placed ? '' : 'grey'}"></div>
+    ${e ? `<div class="cfull"><span>THE HIDE, ON CAMERA${c.video_hash ? ' · RECORDING SHA256 ' + c.video_hash.slice(0, 16) + '…' : ''}</span><div class="video"><iframe src="${e.replace('?autoplay=1', '')}" allow="fullscreen" loading="lazy"></iframe></div></div>`
+        : c.video_url ? `<div class="cfull"><span>THE HIDE, ON CAMERA</span><a href="${esc(c.video_url)}" target="_blank" rel="noopener" style="text-decoration:underline">WATCH THE HIDE ↗</a></div>`
+        : `<div class="cfull"><span>THE HIDE, ON CAMERA</span><b style="font-weight:400;color:var(--dim)">NO RECORDING COMMITTED FOR THIS COIN</b></div>`}
+    <div class="row">${placed ? '<button class="ghost" id="coin-open-map">OPEN IN THE MAP ↗</button>' : '<button class="ghost" id="coin-open-map">OPEN THE MAP ↗</button>'}</div>`;
+  $('#coin').hidden = false; $('#coin').scrollTop = 0;
+  sheet.querySelectorAll('.gl').forEach(el => glyphs(el, +el.dataset.n));
+  $('#coin-x').onclick = closeCoin;
+  $('#coin-open-map').onclick = () => { closeCoin(); setMapMode(true); if (placed) setTimeout(() => goTo(c.found_x, c.found_z), 1000); };
+  // a small map of its own: the found spot in colour, or the whole ring in grey with the book still wandering
+  miniMap = L.map('coin-map', { crs: L.CRS.Simple, minZoom: -1, maxZoom: 12, zoomControl: false, attributionControl: false, zoomSnap: 0, scrollWheelZoom: false });
+  const opts = { minZoom: -1, maxZoom: 12, maxNativeZoom: NATIVE, tileSize: 512, noWrap: true, errorTileUrl: CLEAR, bounds: L.latLngBounds(toLatLng(-524288, -524288), toLatLng(524288, 524288)) };
+  placeLayer('base', opts).addTo(miniMap); placeLayer('overlay', opts).addTo(miniMap);
+  if (placed) { miniMap.setView(toLatLng(c.found_x, c.found_z), 5.5); L.marker(toLatLng(c.found_x, c.found_z), { icon: bookIcon, interactive: false }).addTo(miniMap); }
+  else {
+    miniMap.setView(toLatLng(0, 0), 1.2);
+    const g = L.marker(ringSpot(), { icon: ghostIcon, interactive: false }).addTo(miniMap);
+    coinTimers.push(setInterval(() => { const el = g.getElement(); if (!el) return; el.style.opacity = '0'; setTimeout(() => { g.setLatLng(ringSpot()); el.style.opacity = ''; }, 600); }, 2200));
+  }
+  history.replaceState(null, '', '#coin=' + c.number);
+}
+document.addEventListener('click', e => { if (e.target.closest('a')) return; const t = e.target.closest('[data-n]'); if (t && t.closest('#board')) openCoin(+t.dataset.n); });
+$('#coin').addEventListener('pointerdown', e => { if (e.target === $('#coin')) closeCoin(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#coin').hidden) closeCoin(); });
+let coinLinkDone = false;
 function setMapMode(on){
   const b = document.body, fm = $('#fullmap');
   mapTimers.forEach(clearTimeout); mapTimers = [];
