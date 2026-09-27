@@ -96,6 +96,7 @@
   .claim input { border:2px solid #9945ff } .claim input:focus { border-color:#9945ff }
   #btn-claim:hover { background:#9945ff; border-color:#9945ff; color:#fff }
   #claims a { text-decoration:underline; color:#fff }
+  .own { cursor:pointer } .pop-books .own:hover { color:var(--hot) }
   .card[data-n], .list li[data-n] { cursor:pointer } .card[data-n]:hover { border-color:#fff } .list li[data-n]:hover .name { color:#fff }
   .modal { position:fixed; inset:0; z-index:1200; background:rgba(0,0,0,.84); display:flex; align-items:flex-start; justify-content:center; overflow:auto; padding:64px 14px 40px }
   .sheet { width:min(760px, 100%); background:#000; border:1px solid #fff; padding:22px; display:grid; gap:18px }
@@ -500,6 +501,9 @@ function openCoin(n){
   history.replaceState(null, '', '#coin=' + c.number);
 }
 document.addEventListener('click', e => { if (e.target.closest('a')) return; const t = e.target.closest('[data-n]'); if (t && t.closest('#board')) openCoin(+t.dataset.n); });
+// your own books, in the account panel and under the redeem box, open their sheet too (a book from another round loads that round first)
+document.addEventListener('click', e => { const t = e.target.closest('[data-own]'); if (!t) return; const n = +t.dataset.own, r = +t.dataset.round; $('#account').hidden = true;
+  if (r === ROUND) openCoin(n); else location.href = location.pathname + '?round=' + r + '#coin=' + n; });
 $('#coin').addEventListener('pointerdown', e => { if (e.target === $('#coin')) closeCoin(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#coin').hidden) closeCoin(); });
 let coinLinkDone = false;
@@ -552,7 +556,7 @@ function renderAccount(a){
   $('#acc-ign').innerHTML = a.ign ? head(a.ign) + esc(a.ign.toUpperCase()) : 'NO MINECRAFT NAME YET';
   $('#acc-total').textContent = a.total.toFixed(1);
   $('#acc-split').textContent = 'ON THE SITE ' + a.bal.toFixed(1) + ' · IN YOUR WALLET ' + a.inWallet.toFixed(1) + ' · ' + a.books.length + (a.books.length === 1 ? ' BOOK' : ' BOOKS');
-  $('#acc-books').innerHTML = a.books.map(e => `<div><img src="book-gold.svg" alt="">R${e.coin_round} COIN ${e.coin_number} · ${day(e.at)}</div>`).join('') || '<div>NO BOOKS YET. GO FIND ONE.</div>';
+  $('#acc-books').innerHTML = a.books.map(e => `<div class="own" data-own="${e.coin_number}" data-round="${e.coin_round}"><img src="book-gold.svg" alt="">R${e.coin_round} COIN ${e.coin_number} · ${day(e.at)}</div>`).join('') || '<div>NO BOOKS YET. GO FIND ONE.</div>';
   $('#acc-claim').disabled = !(a.bal > 0);
 }
 $('#nav-account').onclick = e => { e.preventDefault(); if (!session) { $('#btn-discord').click(); return; } $('#account').hidden = !$('#account').hidden; };
@@ -578,7 +582,7 @@ async function showAuth(){
     mine.hidden = false;
     mine.textContent = 'ON THE SITE: ' + bal.toFixed(1) + ' QLL' + (inWallet ? ' · IN YOUR WALLET: ' + inWallet.toFixed(1) + ' QLL' : '') + (rows.length ? ' · ' + rows.length + (rows.length === 1 ? ' BOOK' : ' BOOKS') : ' · NONE YET. GO FIND ONE.');
     books.hidden = !rows.length;
-    books.innerHTML = rows.map(e => `<div class="card found"><img class="book" src="book-gold.svg" alt=""><b>R${e.coin_round} COIN ${e.coin_number}</b><span>REDEEMED ${day(e.at)}</span></div>`).join('');
+    books.innerHTML = rows.map(e => `<div class="card found own" data-own="${e.coin_number}" data-round="${e.coin_round}"><img class="book" src="book-gold.svg" alt=""><b>R${e.coin_round} COIN ${e.coin_number}</b><span>REDEEMED ${day(e.at)}</span></div>`).join('');
     $('#claim').hidden = !(bal > 0 || sent.length);
     $('#btn-claim').disabled = !(bal > 0);
     renderAccount(Object.assign(me, { bal, inWallet, total: bal + inWallet, books: rows }));
