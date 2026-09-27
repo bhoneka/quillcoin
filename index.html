@@ -35,6 +35,21 @@
   h1 { font-family:"Monocraft", ui-monospace, monospace; font-size:clamp(30px, 8vw, 84px); line-height:1.05; font-weight:400; letter-spacing:0; color:var(--hot) }
   h1 small { color:var(--dim); font-family:ui-monospace, monospace }
   .bar .brand { display:flex; align-items:center; gap:9px }
+  .bar .r { align-items:center }
+  .bar .acct { display:flex; align-items:center; gap:7px; cursor:pointer }
+  .bar .acct img { width:20px; height:20px; border-radius:50% }
+  .bar .acct b { color:var(--hot); font-weight:700 }
+  .pop { position:fixed; top:52px; right:12px; z-index:1100; width:min(340px, calc(100vw - 24px)); background:#000; border:1px solid #fff; padding:16px; display:grid; gap:14px }
+  .pop-who { display:flex; align-items:center; gap:12px } .pop-who .pfp { width:48px; height:48px; border-radius:50% }
+  .pop-who b { display:block; font-size:15px; letter-spacing:.06em } .pop-who span { font-size:11px; color:var(--dim); letter-spacing:.12em }
+  .pop .head { width:16px; height:16px; border:0; vertical-align:middle; margin-right:5px }
+  .pop-bal { display:flex; align-items:baseline; gap:10px } .pop-bal img { width:36px; height:36px; image-rendering:pixelated; align-self:center }
+  .pop-bal b { font-size:46px; line-height:1; color:var(--hot) } .pop-bal span { font-size:14px; letter-spacing:.16em; color:var(--dim) }
+  .pop-split { font-size:11px; letter-spacing:.12em; color:var(--dim); line-height:1.5 }
+  .pop-books { display:grid; gap:5px; font-size:12px; letter-spacing:.08em; max-height:150px; overflow:auto }
+  .pop-books div { display:flex; align-items:center; gap:8px } .pop-books img { width:18px; height:18px; image-rendering:pixelated }
+  .pop-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px } .pop-actions button { padding:10px; font-size:12px }
+  #acc-claim:hover:not(:disabled) { background:#9945ff; border-color:#9945ff; color:#fff } #acc-out:hover { background:#5865f2; border-color:#5865f2; color:#fff }
   .bar .logo { width:22px; height:22px; display:block; image-rendering:pixelated }
   /* the map drifts very slowly behind the page; the vignette on top of it stays put */
   body::before { content:""; position:fixed; inset:-6%; z-index:0; pointer-events:none; background:#000 url(map-world.jpg) center / cover no-repeat; animation:drift 140s ease-in-out infinite alternate; will-change:transform }
@@ -163,7 +178,14 @@
 <body>
 <div class="bar">
   <a href="#top" class="brand"><img class="logo" src="favicon.svg" alt="">QUILLCOIN</a>
-  <div class="r"><a href="#redeem">REDEEM↗</a><a href="#coins">COINS</a><a href="#map" id="nav-map">MAP</a><span class="badge" id="badge">R1</span></div>
+  <div class="r"><a href="#redeem">REDEEM↗</a><a href="#coins">COINS</a><a href="#map" id="nav-map">MAP</a><a href="#" id="nav-account" class="acct">SIGN IN</a><span class="badge" id="badge">R1</span></div>
+</div>
+<div id="account" class="pop" hidden>
+  <div class="pop-who"><img id="acc-pfp" class="pfp" alt=""><div><b id="acc-name"></b><span id="acc-ign"></span></div></div>
+  <div class="pop-bal"><img src="favicon.svg" alt=""><b id="acc-total">0.0</b><span>QLL</span></div>
+  <div class="pop-split" id="acc-split"></div>
+  <div class="pop-books" id="acc-books"></div>
+  <div class="pop-actions"><button class="ghost" id="acc-claim">CLAIM TO WALLET</button><button class="ghost" id="acc-out">SIGN OUT</button></div>
 </div>
 <div id="fullmap" hidden>
   <div id="leaf"></div>
@@ -429,13 +451,32 @@ function updateRedeem(){
   if (session) $('#btn-discord').classList.remove('missing');
   if (ignLocked) { $('#btn-ign').classList.remove('missing'); $('#ign-row').classList.remove('missing'); }
 }
+// the account: a chip in the header and a small panel under it, fed by the same numbers as the redeem section
+function renderAccount(a){
+  const chip = $('#nav-account');
+  if (!a) { chip.textContent = 'SIGN IN'; $('#account').hidden = true; return; }
+  chip.innerHTML = (a.pfp ? `<img src="${esc(a.pfp)}" alt="">` : '') + `<b>${a.total.toFixed(1)}</b> QLL`;
+  $('#acc-pfp').src = a.pfp || 'favicon.svg'; $('#acc-name').textContent = a.name.toUpperCase();
+  $('#acc-ign').innerHTML = a.ign ? head(a.ign) + esc(a.ign.toUpperCase()) : 'NO MINECRAFT NAME YET';
+  $('#acc-total').textContent = a.total.toFixed(1);
+  $('#acc-split').textContent = 'ON THE SITE ' + a.bal.toFixed(1) + ' · IN YOUR WALLET ' + a.inWallet.toFixed(1) + ' · ' + a.books.length + (a.books.length === 1 ? ' BOOK' : ' BOOKS');
+  $('#acc-books').innerHTML = a.books.map(e => `<div><img src="book-gold.svg" alt="">R${e.coin_round} COIN ${e.coin_number} · ${day(e.at)}</div>`).join('') || '<div>NO BOOKS YET. GO FIND ONE.</div>';
+  $('#acc-claim').disabled = !(a.bal > 0);
+}
+$('#nav-account').onclick = e => { e.preventDefault(); if (!session) { $('#btn-discord').click(); return; } $('#account').hidden = !$('#account').hidden; };
+$('#acc-out').onclick = () => { $('#account').hidden = true; sb.auth.signOut(); };
+$('#acc-claim').onclick = () => { $('#account').hidden = true; if (document.body.classList.contains('mapmode')) setMapMode(false); setTimeout(() => { $('#claim').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('#wallet').focus({ preventScroll: true }); }, 60); };
+document.addEventListener('pointerdown', e => { const p = $('#account'); if (!p.hidden && !p.contains(e.target) && !e.target.closest('#nav-account')) p.hidden = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#account').hidden = true; });
 async function showAuth(){
   const on = !!session, who = $('#who'), mine = $('#mine'), books = $('#mine-books');
   $('#btn-discord').hidden = on; $('#discord-done').hidden = !on;
   if (on) { const u = session.user, p = pfpOf(u), im = $('#discord-pfp'); $('#discord-name').textContent = nameOf(u).toUpperCase(); if (p) { im.src = p; im.hidden = false; } else im.hidden = true; }
   updateRedeem();
   who.textContent = FLOW === 'old' ? (on ? '' : 'A COIN NEEDS AN OWNER, SO REDEEMING TAKES A DISCORD SIGN-IN.') : 'DISCORD OWNS THE COIN. YOUR MINECRAFT NAME GOES ON THE CARD.';
-  if (!on) { mine.hidden = true; books.hidden = true; $('#claim').hidden = true; return; }
+  if (!on) { mine.hidden = true; books.hidden = true; $('#claim').hidden = true; renderAccount(null); return; }
+  const me = { name: nameOf(session.user), pfp: pfpOf(session.user), ign: ignLocked ? $('#ign').value.trim() : '', bal: 0, inWallet: 0, total: 0, books: [] };
+  renderAccount(me);
   try {
     const { data, error } = await sb.from('ledger').select('delta, reason, coin_round, coin_number, at').eq('user_id', session.user.id).order('at', {ascending:false});
     if (error) throw error;
@@ -448,6 +489,7 @@ async function showAuth(){
     books.innerHTML = rows.map(e => `<div class="card found"><img class="book" src="book-gold.svg" alt=""><b>R${e.coin_round} COIN ${e.coin_number}</b><span>REDEEMED ${day(e.at)}</span></div>`).join('');
     $('#claim').hidden = !(bal > 0 || sent.length);
     $('#btn-claim').disabled = !(bal > 0);
+    renderAccount(Object.assign(me, { bal, inWallet, total: bal + inWallet, books: rows }));
     $('#claims').innerHTML = sent.map(c => `${Number(c.amount).toFixed(1)} QLL → ${esc(c.wallet.slice(0, 4))}…${esc(c.wallet.slice(-4))} · ${day(c.at)} · <a href="https://explorer.solana.com/tx/${esc(c.tx)}${c.network === 'mainnet' ? '' : '?cluster=' + esc(c.network)}" target="_blank" rel="noopener">VIEW ↗</a>`).join('<br>');
   } catch(e) { mine.hidden = true; books.hidden = true; $('#claim').hidden = true; }
 }
@@ -492,6 +534,7 @@ function lockIgn(){
   $('#ign-row').hidden = true; $('#btn-ign').hidden = true; $('#ign-done').hidden = false;
   $('#ign-head-done').src = headUrl(v); $('#ign-name').textContent = v.toUpperCase();
   $('#ign-row').classList.remove('missing'); updateRedeem();
+  if (session) showAuth();
 }
 $('#btn-ign').onclick = () => { openIgn(); $('#ign').focus(); };
 $('#ign-edit').onclick = () => { openIgn(); $('#ign').focus(); };
