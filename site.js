@@ -125,8 +125,6 @@ function drawRings(onMap, only){
       made.push(L.polyline(around(rad), { color: '#000', opacity: .6, weight: 7, interactive: false }).addTo(onMap));
       made.push(L.polyline(around(rad), { color: gold, weight: 3, dashArray: dash, interactive: false }).addTo(onMap));
     }
-    made.push(L.marker(toLatLng(0, max), { interactive: false, keyboard: false, icon: L.divIcon({ className: 'ring-label', iconSize: [0, 0],
-      html: `<span>${roundName(r.id)} · ${blocks(min)} TO ${blocks(max)} BLOCKS FROM SPAWN</span>` }) }).addTo(onMap));
   });
   return made;
 }
