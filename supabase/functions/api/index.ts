@@ -97,21 +97,30 @@ async function board(round: number) {
 }
 
 async function ledger() {
+  const r3 = (n: number) => Math.round(n * 1000) / 1000;
   const { data, error } = await admin.from("ledger")
-    .select("at, delta, reason, coin_round, coin_number").order("at", { ascending: false }).limit(500);
+    .select("at, delta, reason, coin_round, coin_number").order("at", { ascending: false }).limit(1000);
   if (error) throw error;
   const { data: names } = await admin.from("coins").select("round, number, found_ign, found_name").not("found_at", "is", null);
   const nameOf = new Map((names ?? []).map((c) => [`${c.round}/${c.number}`, c.found_ign || c.found_name]));
-  const entries = (data ?? []).map((e) => ({
-    at: e.at,
-    delta: Number(e.delta),
-    reason: e.reason,
+  const rows = data ?? [];
+  // coins come into existence only through a find (1 to the finder) and its founder fee (0.1); a claim moves them to a wallet, it creates nothing
+  const entries = rows.filter((e) => e.reason === "find" || e.reason === "founder-fee").map((e) => ({
+    at: e.at, delta: Number(e.delta), reason: e.reason,
     coin: e.coin_round == null ? null : `R${e.coin_round} #${e.coin_number}`,
     who: e.reason === "founder-fee" ? "FOUNDER" : (nameOf.get(`${e.coin_round}/${e.coin_number}`) || "anonymous"),
   }));
-  const founder = entries.filter((e) => e.reason === "founder-fee").reduce((s, e) => s + e.delta, 0);
-  const minted = entries.reduce((s, e) => s + e.delta, 0);
-  return json(200, { ok: true, minted, founder, entries });
+  const { data: sent } = await admin.from("claims").select("at, amount, founder_amount, wallet, tx, network, user_id").eq("status", "sent").order("at", { ascending: false }).limit(500);
+  const network = Deno.env.get("QLL_NETWORK") ?? "devnet";
+  const transfers = (sent ?? []).map((c) => ({ at: c.at, to_finder: Number(c.amount), to_founder: Number(c.founder_amount), wallet: c.user_id ? c.wallet : "founder wallet", tx: c.tx, network: c.network }));
+  return json(200, {
+    ok: true,
+    minted: r3(entries.reduce((t, e) => t + e.delta, 0)),
+    founder: r3(entries.filter((e) => e.reason === "founder-fee").reduce((t, e) => t + e.delta, 0)),
+    in_wallets: r3(transfers.reduce((t, c) => t + c.to_finder + c.to_founder, 0)),
+    founder_wallet: Deno.env.get("QLL_FOUNDER") ?? null, mint: Deno.env.get("QLL_MINT") ?? null, network,
+    entries, transfers,
+  });
 }
 
 /** Hider tool only. Body: {round, number, hash, ts, server?, blind?}. A hash can be added until the round opens, never after. */
@@ -241,7 +250,8 @@ async function claim(req: Request) {
   if (uerr || !user) return json(401, { ok: false, need: "login", message: "sign in first" });
   const MINT = Deno.env.get("QLL_MINT") ?? "", AUTHORITY = Deno.env.get("QLL_AUTHORITY") ?? "";
   const NETWORK = Deno.env.get("QLL_NETWORK") ?? "devnet", RPC = Deno.env.get("QLL_RPC") ?? "https://api.devnet.solana.com";
-  if (!MINT || !AUTHORITY) return json(503, { ok: false, message: "claims are not open yet" });
+  const FOUNDER = Deno.env.get("QLL_FOUNDER") ?? "";
+  if (!MINT || !AUTHORITY || !FOUNDER) return json(503, { ok: false, message: "claims are not open yet" });
   const b = await req.json().catch(() => null);
   const wallet = typeof b?.wallet === "string" ? b.wallet.trim() : "";
   const web3 = await import("npm:@solana/web3.js@1.98.0");
@@ -261,8 +271,13 @@ async function claim(req: Request) {
     const authority = web3.Keypair.fromSecretKey(Uint8Array.from(JSON.parse(AUTHORITY)));
     const mint = new web3.PublicKey(MINT);
     const account = await spl.getOrCreateAssociatedTokenAccount(conn, authority, mint, to);
+    const founderAccount = await spl.getOrCreateAssociatedTokenAccount(conn, authority, mint, new web3.PublicKey(FOUNDER));
     const units = BigInt(Math.round(Number(row.amount) * 1000)) * 1000n;       // 6 decimals
-    const sig = await spl.mintTo(conn, authority, mint, account.address, authority, units);
+    const feeUnits = BigInt(Math.round(Number(row.founder_amount) * 1000)) * 1000n;
+    // one transaction, two mints: whoever looks at it sees the finder's coins and the founder's tenth arrive together
+    const tx = new web3.Transaction().add(spl.createMintToInstruction(mint, account.address, authority.publicKey, units));
+    if (feeUnits > 0n) tx.add(spl.createMintToInstruction(mint, founderAccount.address, authority.publicKey, feeUnits));
+    const sig = await web3.sendAndConfirmTransaction(conn, tx, [authority]);
     await admin.from("claims").update({ status: "sent", tx: sig, network: NETWORK }).eq("id", row.id);
     const cluster = NETWORK === "mainnet" ? "" : `?cluster=${NETWORK}`;
     return json(200, { ok: true, amount: Number(row.amount), tx: sig, explorer: `https://explorer.solana.com/tx/${sig}${cluster}`, message: `${Number(row.amount)} QLL sent to your wallet${NETWORK === "mainnet" ? "" : " on the test network"}` });

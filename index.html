@@ -294,6 +294,8 @@
   <footer>
     <a id="lnk-hashes" href="#">HASH LIST (JSON)</a>
     <a id="lnk-ledger" href="#">LEDGER (JSON)</a>
+    <a id="lnk-founder" href="#" target="_blank" rel="noopener" hidden>FOUNDER WALLET ↗</a>
+    <a id="lnk-token" href="#" target="_blank" rel="noopener" hidden>QLL TOKEN ↗</a>
     <a href="https://github.com/bhoneka/quillcoin-hider">HIDER SOURCE</a>
     <a href="?round=0">TEST ROUND</a>
     <span>MAP · 2B2T.PLACE (CC0 1M² WORLD DOWNLOAD)</span>
@@ -322,6 +324,12 @@ function openHide(number){
 }
 document.addEventListener('click', e => { const a = e.target.closest('a[data-hide]'); if (a) { e.preventDefault(); openHide(+a.dataset.hide); } });
 if (window.QUILL_PROOF_VIDEO) { $('#proof').hidden = false; $('#proof-video').innerHTML = `<iframe src="${window.QUILL_PROOF_VIDEO}" allow="fullscreen" loading="lazy"></iframe>`; }
+// the founder wallet and the token are public: link both to the explorer so anyone can watch the 1 : 0.1 mints arrive
+fetch(API + '/ledger').then(r => r.json()).then(j => {
+  const q = j.network === 'mainnet' ? '' : '?cluster=' + encodeURIComponent(j.network || 'devnet');
+  if (j.founder_wallet) { const a = $('#lnk-founder'); a.href = 'https://explorer.solana.com/address/' + encodeURIComponent(j.founder_wallet) + '/tokens' + q; a.hidden = false; }
+  if (j.mint) { const a = $('#lnk-token'); a.href = 'https://explorer.solana.com/address/' + encodeURIComponent(j.mint) + q; a.hidden = false; }
+}).catch(() => {});
 $('#lnk-hashes').href = API + '/board?round=' + ROUND; $('#lnk-ledger').href = API + '/ledger';
 $('#badge').textContent = 'R' + ROUND; $('#round-title').textContent = ROUND === 0 ? 'TEST ROUND' : 'ROUND ' + ROUND;
 const since = iso => { if(!iso) return '–'; const d = (Date.now() - Date.parse(iso))/1000; return d<3600 ? Math.floor(d/60)+'M' : d<86400 ? Math.floor(d/3600)+'H' : Math.floor(d/86400)+'D'; };
