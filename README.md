@@ -39,6 +39,7 @@ A code is never stored. It arrives at `/check` and `/redeem`, is hashed at once,
 
 - **A code is spent once.** `claim_coin` locks the book's row, so two people redeeming at the same moment cannot both win.
 - **Nothing joins an open round.** `/hide` refuses new books once a round has opened, and refuses real rounds from anywhere but 2b2t.org.
+- **The ring is fixed before the hunt.** Every round publishes how far from spawn its books are (`ring_min`, `ring_max`); once the round is open the database refuses to change it.
 - **The hider cannot redeem.** Accounts on the `blacklist` table are refused.
 - **The position of a chest is sealed.** The hider tool encrypts it (AES-256-GCM) under a key derived from the book's code. The site stores the sealed box and can only open it with the code, which it sees for the first time when the book is redeemed.
 - **The ledger only grows.** Updates, deletes and truncates are refused by triggers.

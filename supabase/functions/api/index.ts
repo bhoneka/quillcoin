@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
 
 async function board(round: number) {
   if (!Number.isInteger(round) || round < 0) return json(400, { ok: false, message: "bad round" });
-  const { data: r } = await admin.from("rounds").select("id, opened_at, closed_at, note").eq("id", round).maybeSingle();
+  const { data: r } = await admin.from("rounds").select("id, opened_at, closed_at, note, ring_min, ring_max").eq("id", round).maybeSingle();
   if (!r) return json(404, { ok: false, message: "no such round" });
   const { data: coins, error } = await admin.from("coins")
     .select("number, hash, hidden_at, blind, server, found_at, found_ign, found_name, found_x, found_y, found_z, video_hash, video_url").eq("round", round).order("number");
@@ -99,7 +99,7 @@ async function board(round: number) {
 
 const COIN_FIELDS = "round, number, hash, hidden_at, blind, server, found_at, found_ign, found_name, found_x, found_y, found_z, video_hash, video_url";
 async function boardAll() {
-  const { data: rs, error: e1 } = await admin.from("rounds").select("id, opened_at, closed_at, note").order("id");
+  const { data: rs, error: e1 } = await admin.from("rounds").select("id, opened_at, closed_at, note, ring_min, ring_max").order("id");
   if (e1) throw e1;
   const { data: coins, error: e2 } = await admin.from("coins").select(COIN_FIELDS).order("number");
   if (e2) throw e2;

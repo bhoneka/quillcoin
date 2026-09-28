@@ -52,6 +52,7 @@ function renderRounds(){
       <button class="round-bar" data-toggle="${r.id}" aria-expanded="${openSet.has(r.id)}"><span class="chev">▶</span><span class="t">${roundName(r.id)}</span><span class="m">${r.id === 0 ? 'TEST · ' : ''}${r.coins.length} HIDDEN · ${found.length} FOUND</span></button>
       <div class="round-body"><div><div class="round-in">
         <p class="rstat">${roundStatus(r)}</p>
+        <p class="rstat">ITS BOOKS ARE BETWEEN ${blocks(ringOf(r.id).min)} AND ${blocks(ringOf(r.id).max)} BLOCKS FROM SPAWN, IN ANY DIRECTION.</p>
         <div class="stats"><div class="stat"><b>${r.coins.length}</b><span>HIDDEN</span></div><div class="stat"><b>${found.length}</b><span>FOUND</span></div><div class="stat"><b>${last}</b><span>SINCE LAST FIND</span></div></div>
         ${body}
         <p class="rlinks"><a href="${API}/board?round=${r.id}" target="_blank" rel="noopener">THIS ROUND'S HASH LIST (JSON) ↗</a></p>
@@ -69,6 +70,9 @@ async function loadBoard(){
       openSet.add(want !== null && rounds.some(r => r.id === +want) ? +want : withBooks.length ? Math.max(...withBooks) : rounds.length ? Math.max(...rounds.map(r => r.id)) : 0);
     }
     renderRounds(); renderMap();
+    // the guide quotes the ring of the newest real round
+    const real = rounds.filter(r => r.id >= 1).sort((a, b) => b.id - a.id)[0];
+    if (real) { $('#g-ring-min').textContent = blocks(ringOf(real.id).min); $('#g-ring-max').textContent = blocks(ringOf(real.id).max); }
     if (!linked) { linked = true; const m = location.hash.match(/^#coin=(?:(\d+)-)?(\d+)$/); if (m) { const n = +m[2], c = m[1] !== undefined ? coinOf(+m[1], n) : allCoins().filter(x => x.number === n).pop(); if (c) openCoin(c.round, c.number); } }
   } catch (e) { $('#rounds').innerHTML = '<div class="card empty">BOARD UNAVAILABLE</div>'; }
 }
@@ -106,7 +110,9 @@ const placeLayer = (kind, opts) => new (L.TileLayer.extend({ getTileUrl: c => `h
 const tileOpts = () => ({ minZoom: -1, maxZoom: 12, maxNativeZoom: NATIVE, tileSize: 512, noWrap: true, keepBuffer: 3, errorTileUrl: CLEAR, bounds: L.latLngBounds(toLatLng(-524288, -524288), toLatLng(524288, 524288)) });
 const bookIcon = L.icon({ iconUrl: 'book-gold.svg', iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -14], className: 'book-marker' });
 const ghostIcon = L.icon({ iconUrl: 'book-grey.svg', iconSize: [24, 24], iconAnchor: [12, 12], className: 'ghost-marker' });
-const ringSpot = round => { const min = round === 0 ? 2000 : 15000, max = 100000, a = Math.random() * Math.PI * 2, r = Math.sqrt(min * min + Math.random() * (max * max - min * min)); return toLatLng(Math.round(Math.cos(a) * r), Math.round(Math.sin(a) * r)); };
+const ringOf = round => { const r = rounds.find(x => x.id === round) || {}; return { min: Number.isFinite(r.ring_min) ? r.ring_min : 15000, max: Number.isFinite(r.ring_max) ? r.ring_max : 100000 }; };
+const blocks = n => Number(n).toLocaleString('en-US');
+const ringSpot = round => { const { min, max } = ringOf(round), a = Math.random() * Math.PI * 2, r = Math.sqrt(min * min + Math.random() * (max * max - min * min)); return toLatLng(Math.round(Math.cos(a) * r), Math.round(Math.sin(a) * r)); };
 const tip = { direction: 'top', offset: [0, -12], className: 'ghost-tip' };
 let map = null, markers = [], ghosts = [], ghostTimer = null, mapTimers = [];
 function ensureMap(){
