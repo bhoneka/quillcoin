@@ -310,3 +310,6 @@ a.rlinks { margin:0 }
 @media (max-width:700px){ .lrow .tm2 { display:block; font-size:10px; letter-spacing:.06em; color:var(--dim); margin-top:3px; white-space:normal } }
 #guide { counter-reset:g } .guide summary .k::before { counter-increment:g; content:counter(g, decimal-leading-zero) }
 .mainnet .testnet-only { display:none }
+.ring-label span { position:absolute; transform:translate(-50%, 60%); white-space:nowrap; font-size:10px; letter-spacing:.14em; color:var(--hot); background:rgba(0,0,0,.78); border:1px solid rgba(255,212,0,.45); padding:3px 7px }
+@media (max-width:700px){ .ring-label span { font-size:9px; letter-spacing:.06em } }
+.ring-chip { border-color:rgba(255,212,0,.6) } .ring-chip i { display:inline-block; width:10px; height:10px; border:2px solid var(--hot); border-radius:50%; margin-right:7px; vertical-align:-1px }

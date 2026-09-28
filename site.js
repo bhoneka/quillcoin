@@ -29,7 +29,7 @@ function roundStatus(r){
   const now = Date.now(), opened = r.opened_at && Date.parse(r.opened_at) <= now, closed = r.closed_at && Date.parse(r.closed_at) <= now;
   if (r.id === 0) return 'THE TEST ROUND · ITS COINS ARE WORTH NOTHING · IT IS HERE SO THE WHOLE MACHINE CAN BE TRIED IN PUBLIC';
   if (closed) return 'CLOSED ' + day(r.closed_at);
-  return opened ? 'OPEN SINCE ' + day(r.opened_at) + ' · ALL HASHES COMMITTED BEFORE THAT DAY' : 'NOT OPEN YET · HASHES BEING COMMITTED';
+  return opened ? 'OPEN SINCE ' + day(r.opened_at) + ' · ITS LIST OF BOOKS WAS LOCKED BEFORE THAT DAY' : 'NOT OPEN YET · ITS BOOKS ARE STILL BEING HIDDEN';
 }
 const vidLink = c => c.video_url ? `<a href="${esc(c.video_url)}" data-hide="${c.round}-${c.number}" title="recording sha256 ${c.video_hash || ''}">WATCH THE HIDE ↗</a>` : '';
 function cardHTML(c, i){
@@ -55,7 +55,7 @@ function renderRounds(){
         <p class="rstat">ITS BOOKS ARE BETWEEN ${blocks(ringOf(r.id).min)} AND ${blocks(ringOf(r.id).max)} BLOCKS FROM SPAWN, IN ANY DIRECTION.</p>
         <div class="stats"><div class="stat"><b>${r.coins.length}</b><span>HIDDEN</span></div><div class="stat"><b>${found.length}</b><span>FOUND</span></div><div class="stat"><b>${last}</b><span>SINCE LAST FIND</span></div></div>
         ${body}
-        <p class="rlinks"><a href="${API}/board?round=${r.id}" target="_blank" rel="noopener">THIS ROUND'S HASH LIST (JSON) ↗</a></p>
+        <p class="rlinks"><a href="${API}/board?round=${r.id}" target="_blank" rel="noopener">THIS ROUND'S LIST OF FINGERPRINTS (RAW DATA) ↗</a></p>
       </div></div></div></div>`;
   }).join('') || '<div class="card empty">NOTHING HERE YET</div>';
   $('#map-count').textContent = foundOnes().length + ' ON THE MAP · ' + allCoins().filter(c => !c.found_at).length + ' STILL OUT';
@@ -114,7 +114,22 @@ const ringOf = round => { const r = rounds.find(x => x.id === round) || {}; retu
 const blocks = n => Number(n).toLocaleString('en-US');
 const ringSpot = round => { const { min, max } = ringOf(round), a = Math.random() * Math.PI * 2, r = Math.sqrt(min * min + Math.random() * (max * max - min * min)); return toLatLng(Math.round(Math.cos(a) * r), Math.round(Math.sin(a) * r)); };
 const tip = { direction: 'top', offset: [0, -12], className: 'ghost-tip' };
-let map = null, markers = [], ghosts = [], ghostTimer = null, mapTimers = [];
+let map = null, markers = [], ghosts = [], ghostTimer = null, mapTimers = [], rings = [];
+// a gold ring for every real round: its books are somewhere between the dashed circle and the solid one
+function drawRings(onMap, only){
+  const made = [], around = rad => Array.from({ length: 181 }, (_, i) => { const a = i / 180 * Math.PI * 2; return toLatLng(Math.cos(a) * rad, Math.sin(a) * rad); });
+  rounds.filter(r => r.id >= 1 && (only == null || r.id === only)).forEach(r => {
+    const { min, max } = ringOf(r.id), gold = '#ffd400';
+    made.push(L.polygon([around(max), around(min)], { stroke: false, fillColor: gold, fillOpacity: .13, interactive: false }).addTo(onMap));
+    for (const [rad, dash] of [[max, null], [min, '7 8']]) {                     // a dark line under the gold one, so it reads on snow and on sand
+      made.push(L.polyline(around(rad), { color: '#000', opacity: .6, weight: 7, interactive: false }).addTo(onMap));
+      made.push(L.polyline(around(rad), { color: gold, weight: 3, dashArray: dash, interactive: false }).addTo(onMap));
+    }
+    made.push(L.marker(toLatLng(0, max), { interactive: false, keyboard: false, icon: L.divIcon({ className: 'ring-label', iconSize: [0, 0],
+      html: `<span>${roundName(r.id)} · ${blocks(min)} TO ${blocks(max)} BLOCKS FROM SPAWN</span>` }) }).addTo(onMap));
+  });
+  return made;
+}
 function ensureMap(){
   if (map) return map;
   map = L.map('leaf', { crs: L.CRS.Simple, minZoom: -1, maxZoom: 12, zoomControl: false, attributionControl: false, zoomSnap: 0, wheelPxPerZoomLevel: 90,
@@ -130,6 +145,9 @@ function showCoords(b){ $('#c-ow').innerHTML = 'OVERWORLD <b>' + b.x + ' ' + b.z
 function renderMap(){
   if (!map) return;
   markers.forEach(m => m.remove()); markers = [];
+  rings.forEach(x => x.remove()); rings = drawRings(map);
+  const real = rounds.filter(r => r.id >= 1).sort((a, b) => b.id - a.id)[0];
+  $('#c-ring').hidden = !real; if (real) $('#c-ring').innerHTML = `<i></i>${roundName(real.id)} · <b>${blocks(ringOf(real.id).min)} TO ${blocks(ringOf(real.id).max)}</b> FROM SPAWN`;
   foundOnes().forEach(c => markers.push(L.marker(toLatLng(c.found_x, c.found_z), { icon: bookIcon }).addTo(map)
     .bindTooltip(`${roundName(c.round)} · COIN ${c.number} · ${finder(c)}<br>${c.found_x}, ${c.found_z}`, tip).on('click', () => openCoin(c.round, c.number))));
   if (document.body.classList.contains('mapmode')) startGhosts();
@@ -239,7 +257,7 @@ function openCoin(r, n, opts = {}){
     <div id="coin-map" class="${at ? '' : 'grey'}"></div>
     ${e ? `<div class="cfull"><span>THE HIDE, ON CAMERA${c.video_hash ? ' · RECORDING SHA256 ' + c.video_hash.slice(0, 16) + '…' : ''}</span><div class="video"><iframe src="${e}" allow="fullscreen" loading="lazy"></iframe></div></div>`
         : c.video_url ? `<div class="cfull"><span>THE HIDE, ON CAMERA</span><a href="${esc(c.video_url)}" target="_blank" rel="noopener" style="text-decoration:underline">WATCH THE HIDE ↗</a></div>`
-        : '<div class="cfull"><span>THE HIDE, ON CAMERA</span><b style="font-weight:400;color:var(--dim)">NO RECORDING COMMITTED FOR THIS COIN</b></div>'}
+        : '<div class="cfull"><span>THE HIDE, ON CAMERA</span><b style="font-weight:400;color:var(--dim)">NO RECORDING WAS PUBLISHED FOR THIS COIN</b></div>'}
     <div class="row">${reveal ? '<button id="coin-claim">CLAIM TO WALLET</button>' : ''}<button class="ghost" id="coin-open-map">${at ? 'OPEN IN THE MAP ↗' : 'OPEN THE MAP ↗'}</button></div>`;
   $('#coin').hidden = false; $('#coin').scrollTop = 0;
   sheet.querySelectorAll('.gl').forEach((el, k) => {
@@ -253,7 +271,7 @@ function openCoin(r, n, opts = {}){
   placeLayer('base', tileOpts()).addTo(miniMap); placeLayer('overlay', tileOpts()).addTo(miniMap);
   if (at) { miniMap.setView(toLatLng(c.found_x, c.found_z), 5.5); L.marker(toLatLng(c.found_x, c.found_z), { icon: bookIcon, interactive: false }).addTo(miniMap); }
   else {
-    miniMap.setView(toLatLng(0, 0), 1.2);
+    miniMap.setView(toLatLng(0, 0), 1.2); drawRings(miniMap, r);
     const g = L.marker(ringSpot(r), { icon: ghostIcon, interactive: false }).addTo(miniMap);
     coinTimers.push(setInterval(() => { const el = g.getElement(); if (!el) return; el.style.opacity = '0'; setTimeout(() => { g.setLatLng(ringSpot(r)); el.style.opacity = ''; }, 600); }, 2200));
   }
