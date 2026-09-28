@@ -19,7 +19,7 @@
 <meta property="og:image" content="https://quillcoin.gg/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="description" content="Every QuillCoin ever created and where it went. Checked in your own browser, anchored on Solana.">
-<link rel="stylesheet" href="site.css?v=7">
+<link rel="stylesheet" href="site.css?v=8">
 </head>
 <body class="ledger">
 <div class="bar">
@@ -76,30 +76,30 @@
 
   <section id="guide">
     <h2>HOW TO READ THIS</h2>
-    <details class="guide" open><summary><span class="k">01</span><span>What is a line?</span><span class="pm">+</span></summary><div class="gb">
+    <details class="guide" open><summary><span class="k"></span><span>What is a line?</span><span class="pm">+</span></summary><div class="gb">
       <p>One thing that happened to coins. There are only a few kinds:</p>
       <ul>
         <li><b>A find</b>: somebody redeemed a book. 1 QLL is created for them.</li>
         <li><b>The founder's tenth</b>: written together with every find. 0.1 QLL is created for the founder.</li>
         <li><b>A move to a wallet</b>: coins leave the site for a Solana wallet. The amount is negative here because it left the site; the coins themselves now sit in the wallet.</li>
-        <li><b>A returned transfer</b>: a transfer that did not go through. The coins are put back, as a new line. The failed line stays where it is.</li>
+        <li><b>A returned transfer</b>: a transfer that did not go through. The coins are put back, as a new line. The failed line stays where it is. This only ever happens once the transaction can no longer arrive, so coins cannot be returned and delivered at the same time.</li>
       </ul>
       <p>Coins are created by finds and by nothing else. Every other kind of line only moves them.</p>
     </div></details>
-    <details class="guide"><summary><span class="k">02</span><span>Why can't a line be changed?</span><span class="pm">+</span></summary><div class="gb">
+    <details class="guide"><summary><span class="k"></span><span>Why can't a line be changed?</span><span class="pm">+</span></summary><div class="gb">
       <p>Every line carries two fingerprints: its own, and the one of the line before it. A line's own fingerprint is worked out from everything written on it, including the fingerprint before it. Change one digit anywhere and that line's fingerprint changes, which breaks the next line, and the next, down to the newest.</p>
       <p>The database itself refuses to change or delete a line. But a database belongs to whoever runs it, so that alone would be a promise. The next two answers are what turn it into something you can check.</p>
     </div></details>
-    <details class="guide"><summary><span class="k">03</span><span>What does Solana have to do with it?</span><span class="pm">+</span></summary><div class="gb">
+    <details class="guide"><summary><span class="k"></span><span>What does Solana have to do with it?</span><span class="pm">+</span></summary><div class="gb">
       <p>Whoever runs a database could, in theory, rewrite every line and work out every fingerprint again. The chain would look perfect. So every time coins are sent to a wallet, the newest fingerprint is written into that Solana transaction as a note: <b>quillcoin-ledger:</b> followed by the fingerprint.</p>
       <p>Nobody can edit a Solana transaction, the founder included. If the ledger were ever rewritten, the fingerprints already sitting on Solana would no longer be found in it, and button 2 would say so in red.</p>
       <p>Button 2 also asks Solana how many QLL exist and compares that with what the ledger says was sent to wallets. A coin created outside the ledger would show up as a difference.</p>
     </div></details>
-    <details class="guide"><summary><span class="k">04</span><span>What does "remember this moment" do?</span><span class="pm">+</span></summary><div class="gb">
+    <details class="guide"><summary><span class="k"></span><span>What does "remember this moment" do?</span><span class="pm">+</span></summary><div class="gb">
       <p>It keeps the newest line's number and fingerprint in your own browser. On your next visit the page looks that line up. If it is still there, unchanged, then nothing before it was touched while you were away. You become a witness of your own; the more people press it, the less room there is to rewrite anything.</p>
       <p>You can also simply write the newest fingerprint down. It is printed above the lines.</p>
     </div></details>
-    <details class="guide"><summary><span class="k">05</span><span>Checking a line by hand</span><span class="pm">+</span></summary><div class="gb">
+    <details class="guide"><summary><span class="k"></span><span>Checking a line by hand</span><span class="pm">+</span></summary><div class="gb">
       <p>Take the line's fields in this order and join them with the <b>|</b> character. A field that is empty stays empty:</p>
       <p class="mono">fingerprint before | number | time | amount | kind | round | coin | who</p>
       <p>The SHA-256 of that text is the line's fingerprint. Here is the newest line, exactly as it is hashed:</p>
@@ -107,10 +107,10 @@
       <p class="mono" id="ex-hash">…</p>
       <p>Any SHA-256 tool gives the same answer. On a Mac or Linux terminal: <span class="mono inl">printf '%s' 'the text' | shasum -a 256</span></p>
     </div></details>
-    <details class="guide"><summary><span class="k">06</span><span>Why do the line numbers skip sometimes?</span><span class="pm">+</span></summary><div class="gb">
+    <details class="guide"><summary><span class="k"></span><span>Why do the line numbers skip sometimes?</span><span class="pm">+</span></summary><div class="gb">
       <p>A number is handed out the moment a line is about to be written. If that write is called off, the number is not used again. A missing number is not a missing line: what links two lines is the fingerprint, and button 1 checks that every line points at the one right before it.</p>
     </div></details>
-    <details class="guide"><summary><span class="k">07</span><span>What this page cannot prove</span><span class="pm">+</span></summary><div class="gb">
+    <details class="guide"><summary><span class="k"></span><span>What this page cannot prove</span><span class="pm">+</span></summary><div class="gb">
       <ul>
         <li>The newest few lines are only as safe as the last transfer before them. They become fixed the next time coins are sent to a wallet, or the moment anybody remembers them.</li>
         <li>Names on the lines are labels and are not part of any fingerprint. Rounds, coin numbers, amounts and times are.</li>
@@ -127,6 +127,6 @@
     <span>2B2T.ORG · NOT AFFILIATED</span>
   </footer>
 </main>
-<script src="ledger.js?v=7"></script>
+<script src="ledger.js?v=8"></script>
 </body>
 </html>

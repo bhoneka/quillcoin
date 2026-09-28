@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
   const u = new URL(req.url);
   const path = u.pathname.replace(/^\/api/, "").replace(/\/+$/, "") || "/";
   try {
-    const cls = path === "/check" || path === "/redeem" ? "code" : path === "/hide" ? "hide" : "read";
+    const cls = path === "/check" || path === "/redeem" || path === "/settle" ? "code" : path === "/hide" ? "hide" : "read";
     const max = cls === "code" ? 20 : cls === "hide" ? 60 : 120;
     if (await limited(req, cls, max)) return json(429, { ok: false, message: "slow down - try again in a minute" });
     if (req.method === "GET" && path === "/board") { const q = u.searchParams.get("round"); return q === null ? await boardAll() : await board(Number(q)); }
@@ -71,11 +71,12 @@ Deno.serve(async (req) => {
     if (req.method === "POST" && path === "/check") return await check(req);
     if (req.method === "POST" && path === "/redeem") return await redeem(req);
     if (req.method === "POST" && path === "/claim") return await claim(req);
+    if (req.method === "POST" && path === "/settle") return await settle(req);
     if (path === "/") {
       return json(200, {
         ok: true,
         service: "quillcoin api",
-        endpoints: ["GET /board", "GET /board?round=N", "GET /ledger", "GET /ledger?after=ID", "POST /check {code}", "POST /redeem {code, ign} + Bearer <user token>", "POST /claim {wallet} + Bearer <user token>", "POST /hide (hider tool only)", "POST /video {round, number, sha256, url} (hider only)"],
+        endpoints: ["GET /board", "GET /board?round=N", "GET /ledger", "GET /ledger?after=ID", "POST /check {code}", "POST /redeem {code, ign} + Bearer <user token>", "POST /claim {wallet} + Bearer <user token>", "POST /settle + Bearer <user token>", "POST /hide (hider tool only)", "POST /video {round, number, sha256, url} (hider only)"],
       });
     }
     return json(404, { ok: false, message: "no such endpoint" });
@@ -123,7 +124,7 @@ async function ledger(u: URL) {
   const transfers = (sent ?? []).map((c) => ({ at: c.at, to_finder: Number(c.amount), to_founder: Number(c.founder_amount), wallet: c.user_id ? c.wallet : "founder wallet", tx: c.tx, network: c.network, ledger_head: c.ledger_head }));
   return json(200, {
     ...page,
-    minted: Number(tot.minted ?? 0), founder: Number(tot.founder ?? 0), on_site: Number(tot.on_site ?? 0), in_wallets: Number(tot.in_wallets ?? 0),
+    minted: Number(tot.minted ?? 0), founder: Number(tot.founder ?? 0), on_site: Number(tot.on_site ?? 0), in_wallets: Number(tot.in_wallets ?? 0), in_flight: Number(tot.in_flight ?? 0),
     founder_wallet: Deno.env.get("QLL_FOUNDER") ?? null, mint: Deno.env.get("QLL_MINT") ?? null, network: Deno.env.get("QLL_NETWORK") ?? "devnet",
     hashing: "sha256( prev | id | at | delta | reason | coin_round | coin_number | who ), empty for a missing value, joined with |",
     anchor: "every claim writes quillcoin-ledger:<newest hash> into its own Solana transaction",
@@ -249,24 +250,96 @@ async function announce(round: number, number: number, ign: string) {
   await fetch(WEBHOOK, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, username: "QuillCoin" }) });
 }
 
-/** Moves a finder's whole site balance to their wallet as QLL tokens. Test network for now: QLL_NETWORK / QLL_RPC / QLL_MINT / QLL_AUTHORITY are function secrets. */
-async function claim(req: Request) {
-  const auth = req.headers.get("authorization") ?? "";
-  if (!auth.startsWith("Bearer ")) return json(401, { ok: false, need: "login", message: "sign in first" });
-  const asUser = createClient(SB_URL, ANON, { global: { headers: { Authorization: auth } }, auth: { persistSession: false, autoRefreshToken: false } });
-  const { data: { user }, error: uerr } = await asUser.auth.getUser();
-  if (uerr || !user) return json(401, { ok: false, need: "login", message: "sign in first" });
-  const MINT = Deno.env.get("QLL_MINT") ?? "", AUTHORITY = Deno.env.get("QLL_AUTHORITY") ?? "";
+// ---------------------------------------------------------------- moving coins to a wallet
+const SYSTEM_PROGRAM = "11111111111111111111111111111111";
+const MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
+type Fate = "landed" | "failed" | "unknown";
+
+async function chain() {
+  const web3 = await import("npm:@solana/web3.js@1.98.0");
   const NETWORK = Deno.env.get("QLL_NETWORK") ?? "devnet", RPC = Deno.env.get("QLL_RPC") ?? "https://api.devnet.solana.com";
-  const FOUNDER = Deno.env.get("QLL_FOUNDER") ?? "";
+  return { web3, NETWORK, conn: new web3.Connection(RPC, "confirmed") };
+}
+async function signedIn(req: Request) {
+  const auth = req.headers.get("authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return null;
+  const asUser = createClient(SB_URL, ANON, { global: { headers: { Authorization: auth } }, auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: { user }, error } = await asUser.auth.getUser();
+  return error || !user ? null : user;
+}
+
+/** What became of a transaction. "failed" is only ever answered when it ran and was rejected, or when it can no longer run at all. */
+// deno-lint-ignore no-explicit-any
+async function fate(conn: any, sig: string, lastValid: number | null): Promise<Fate> {
+  for (let look = 0; look < 2; look++) {
+    const st = (await conn.getSignatureStatuses([sig], { searchTransactionHistory: true })).value[0];
+    if (st) {
+      if (st.err) return "failed";
+      return st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized" ? "landed" : "unknown";
+    }
+    // never seen. It can still arrive until the network has finalized a block past the last one it is valid for; after that, look once more and then it is certain
+    if (lastValid == null || (await conn.getBlockHeight("finalized")) <= lastValid) return "unknown";
+  }
+  return "failed";
+}
+
+/** Settles every transfer of this finder that was left open. Returns how many are still waiting. */
+// deno-lint-ignore no-explicit-any
+async function settlePending(userId: string, conn: any): Promise<{ settled: number; waiting: number }> {
+  const { data: rows, error } = await admin.from("claims").select("id, at, tx, last_valid_height").eq("user_id", userId).eq("status", "pending");
+  if (error) throw error;
+  let settled = 0, waiting = 0;
+  for (const c of rows ?? []) {
+    if (!c.tx) {
+      // no signature was written down, so nothing was ever handed to the network; give a running request three minutes before calling it off
+      if (Date.now() - Date.parse(c.at) > 180_000) { await admin.rpc("fail_claim", { p_id: c.id }); settled++; } else waiting++;
+      continue;
+    }
+    const f = await fate(conn, c.tx, c.last_valid_height == null ? null : Number(c.last_valid_height));
+    if (f === "landed") { await admin.rpc("mark_claim_sent", { p_id: c.id }); settled++; }
+    else if (f === "failed") { await admin.rpc("fail_claim", { p_id: c.id }); settled++; }
+    else waiting++;
+  }
+  return { settled, waiting };
+}
+
+async function settle(req: Request) {
+  const user = await signedIn(req);
+  if (!user) return json(401, { ok: false, need: "login", message: "sign in first" });
+  const { conn } = await chain();
+  const r = await settlePending(user.id, conn);
+  return json(200, { ok: true, ...r, message: r.waiting ? "still being confirmed" : "nothing is waiting" });
+}
+
+/** Moves a finder's whole site balance to their wallet as QLL tokens. QLL_NETWORK / QLL_RPC / QLL_MINT / QLL_AUTHORITY / QLL_FOUNDER are function secrets. */
+async function claim(req: Request) {
+  const user = await signedIn(req);
+  if (!user) return json(401, { ok: false, need: "login", message: "sign in first" });
+  const MINT = Deno.env.get("QLL_MINT") ?? "", AUTHORITY = Deno.env.get("QLL_AUTHORITY") ?? "", FOUNDER = Deno.env.get("QLL_FOUNDER") ?? "";
   if (!MINT || !AUTHORITY || !FOUNDER) return json(503, { ok: false, message: "claims are not open yet" });
   const b = await req.json().catch(() => null);
   const wallet = typeof b?.wallet === "string" ? b.wallet.trim() : "";
-  const web3 = await import("npm:@solana/web3.js@1.98.0");
+  const { web3, NETWORK, conn } = await chain();
   const spl = await import("npm:@solana/spl-token@0.4.9");
+  const authority = web3.Keypair.fromSecretKey(Uint8Array.from(JSON.parse(AUTHORITY)));
+
+  // the address has to be a wallet, and a wallet of the finder's own
   let to;
   try { to = new web3.PublicKey(wallet); if (!web3.PublicKey.isOnCurve(to.toBytes())) throw new Error("not a wallet"); }
   catch { return json(400, { ok: false, message: "that is not a solana wallet address" }); }
+  if (wallet === MINT) return json(400, { ok: false, message: "that is the address of the token itself, not of a wallet - paste your wallet's address" });
+  if (wallet === FOUNDER) return json(400, { ok: false, message: "that is the founder wallet - it only ever receives the founder's tenth" });
+  if (wallet === authority.publicKey.toBase58()) return json(400, { ok: false, message: "that address belongs to the token, not to a wallet" });
+  try {
+    const acct = await conn.getAccountInfo(to);
+    if (acct && acct.owner.toBase58() !== SYSTEM_PROGRAM) return json(400, { ok: false, message: "that address is not a wallet (it is a token account or a program) - paste your wallet's main address" });
+  } catch (e) { console.error("claim lookup", e); return json(502, { ok: false, message: "solana could not be reached - nothing was sent, try again in a minute" }); }
+
+  // one transfer at a time: anything left open is settled first
+  try {
+    const open = await settlePending(user.id, conn);
+    if (open.waiting) return json(409, { ok: false, pending: true, message: "an earlier transfer of yours is still being confirmed - give it a minute" });
+  } catch (e) { console.error("claim settle", e); return json(502, { ok: false, message: "solana could not be reached - nothing was sent, try again in a minute" }); }
 
   const { data, error } = await admin.rpc("begin_claim", { p_user: user.id, p_wallet: wallet });
   if (error) {
@@ -274,31 +347,58 @@ async function claim(req: Request) {
     throw error;
   }
   const row = Array.isArray(data) ? data[0] : data;
+  const back = async (why: unknown) => {
+    console.error("claim", why);
+    await admin.rpc("fail_claim", { p_id: row.id });
+    return json(502, { ok: false, message: "the transfer did not go through - your balance is back on the site, try again" });
+  };
+  const done = (sig: string) => {
+    const cluster = NETWORK === "mainnet" ? "" : `?cluster=${NETWORK}`;
+    return json(200, { ok: true, amount: Number(row.amount), tx: sig, explorer: `https://explorer.solana.com/tx/${sig}${cluster}`, message: `${Number(row.amount)} QLL sent to your wallet${NETWORK === "mainnet" ? "" : " on the test network"}` });
+  };
+
+  // 1. everything up to the signature: if any of it fails, nothing was handed to the network and the balance goes straight back
+  let tx, sig: string, latest;
   try {
-    const conn = new web3.Connection(RPC, "confirmed");
-    const authority = web3.Keypair.fromSecretKey(Uint8Array.from(JSON.parse(AUTHORITY)));
     const mint = new web3.PublicKey(MINT);
     const account = await spl.getOrCreateAssociatedTokenAccount(conn, authority, mint, to);
     const founderAccount = await spl.getOrCreateAssociatedTokenAccount(conn, authority, mint, new web3.PublicKey(FOUNDER));
     const units = BigInt(Math.round(Number(row.amount) * 1000)) * 1000n;       // 6 decimals
     const feeUnits = BigInt(Math.round(Number(row.founder_amount) * 1000)) * 1000n;
     // one transaction, two mints: whoever looks at it sees the finder's coins and the founder's tenth arrive together
-    const tx = new web3.Transaction().add(spl.createMintToInstruction(mint, account.address, authority.publicKey, units));
+    tx = new web3.Transaction().add(spl.createMintToInstruction(mint, account.address, authority.publicKey, units));
     if (feeUnits > 0n) tx.add(spl.createMintToInstruction(mint, founderAccount.address, authority.publicKey, feeUnits));
     // anchor: the ledger's newest hash is written into the transaction itself, where it can never be edited
     const { data: top } = await admin.from("ledger_public").select("hash").order("id", { ascending: false }).limit(1).maybeSingle();
     const head = top?.hash ?? "";
-    if (head) {
-      const { Buffer } = await import("node:buffer");
-      tx.add(new web3.TransactionInstruction({ keys: [], programId: new web3.PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"), data: Buffer.from("quillcoin-ledger:" + head, "utf8") }));
-    }
-    const sig = await web3.sendAndConfirmTransaction(conn, tx, [authority]);
-    await admin.from("claims").update({ status: "sent", tx: sig, network: NETWORK, ledger_head: head || null }).eq("id", row.id);
-    const cluster = NETWORK === "mainnet" ? "" : `?cluster=${NETWORK}`;
-    return json(200, { ok: true, amount: Number(row.amount), tx: sig, explorer: `https://explorer.solana.com/tx/${sig}${cluster}`, message: `${Number(row.amount)} QLL sent to your wallet${NETWORK === "mainnet" ? "" : " on the test network"}` });
+    const { Buffer } = await import("node:buffer");
+    if (head) tx.add(new web3.TransactionInstruction({ keys: [], programId: new web3.PublicKey(MEMO_PROGRAM), data: Buffer.from("quillcoin-ledger:" + head, "utf8") }));
+    latest = await conn.getLatestBlockhash("confirmed");
+    tx.recentBlockhash = latest.blockhash; tx.lastValidBlockHeight = latest.lastValidBlockHeight; tx.feePayer = authority.publicKey;
+    tx.sign(authority);
+    const { default: bs58 } = await import("npm:bs58@6.0.0");
+    sig = bs58.encode(tx.signature!);
+    // written down before it leaves, so it can always be looked up afterwards
+    const { error: e1 } = await admin.from("claims").update({ tx: sig, last_valid_height: latest.lastValidBlockHeight, network: NETWORK, ledger_head: head || null }).eq("id", row.id);
+    if (e1) throw e1;
+  } catch (e) { return await back(e); }
+
+  // 2. handed to the network. From here on the balance only goes back when the transaction can no longer happen
+  try {
+    await conn.sendRawTransaction(tx.serialize(), { maxRetries: 5 });
   } catch (e) {
-    console.error("claim", e);
-    await admin.rpc("fail_claim", { p_id: row.id });
-    return json(502, { ok: false, message: "the transfer did not go through - your balance is back on the site, try again" });
+    if (e instanceof web3.SendTransactionError) return await back(e);           // the network answered no: it was never passed on
+    console.error("claim send", e);                                             // no answer at all: it may or may not have arrived
   }
+  let f: Fate = "unknown";
+  try {
+    const res = await conn.confirmTransaction({ signature: sig, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight }, "confirmed");
+    f = res.value.err ? "failed" : "landed";
+  } catch (e) {
+    console.error("claim confirm", e);
+    try { f = await fate(conn, sig, latest.lastValidBlockHeight); } catch (e2) { console.error("claim fate", e2); }
+  }
+  if (f === "landed") { await admin.rpc("mark_claim_sent", { p_id: row.id }); return done(sig); }
+  if (f === "failed") return await back("transaction " + sig + " failed or expired");
+  return json(202, { ok: true, pending: true, tx: sig, message: "the transfer is taking longer than usual - your coins are reserved for it, and this page will show how it ended" });
 }

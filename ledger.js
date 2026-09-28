@@ -55,7 +55,7 @@ async function load(){
   } catch (e) { $('#rows').innerHTML = '<div class="lrow"><span></span><span>THE LEDGER COULD NOT BE REACHED. TRY AGAIN IN A MINUTE.</span></div>'; $('#sent').innerHTML = ''; $('#t-note').textContent = ''; $('#c-head').textContent = ''; return; }
   $('#t-minted').textContent = q3(info.minted); $('#t-finders').textContent = q3(info.minted - info.founder); $('#t-founder').textContent = q3(info.founder);
   $('#t-wallets').textContent = q3(info.in_wallets); $('#t-site').textContent = q3(info.on_site);
-  $('#t-note').textContent = (info.network === 'mainnet' ? '' : 'TEST NETWORK: THESE COINS ARE WORTH NOTHING. ') + 'CREATED = MOVED TO WALLETS + STILL WAITING ON THE SITE.';
+  $('#t-note').textContent = (info.network === 'mainnet' ? '' : 'TEST NETWORK: THESE COINS ARE WORTH NOTHING. ') + 'CREATED = MOVED TO WALLETS + STILL WAITING ON THE SITE' + (Number(info.in_flight) ? ' + ' + q3(info.in_flight) + ' ON THEIR WAY TO A WALLET RIGHT NOW.' : '.');
   $('#c-head').innerHTML = chain.length ? `${chain.length} LINES · NEWEST FINGERPRINT <span class="mono inl">${info.head}</span>` : 'NO LINES YET';
   $('#lnk-json').href = API + '/ledger';
   const n = info.network || 'devnet';
@@ -82,7 +82,7 @@ async function verify(){
   }
   renderRows();
   const k = n => Math.round(Number(n) * 1000);
-  const totals = minted === k(info.minted) && founder === k(info.founder) && total === k(info.on_site) && k(info.minted) === k(info.in_wallets) + k(info.on_site);
+  const totals = minted === k(info.minted) && founder === k(info.founder) && total === k(info.on_site) && k(info.minted) === k(info.in_wallets) + k(info.in_flight || 0) + k(info.on_site);
   const headOk = prev === info.head;
   // every find must come with exactly its tenth
   const finds = chain.filter(r => r.reason === 'find'), fees = new Map(chain.filter(r => r.reason === 'founder-fee').map(r => [r.coin_round + '/' + r.coin_number, r]));
@@ -96,9 +96,14 @@ async function verify(){
 
 // 2 · the transfers, read from the network itself
 async function rpc(network, method, params){
-  const r = await fetch(RPC[network] || RPC.devnet, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) });
-  if (!r.ok) throw new Error('solana answered ' + r.status);
-  const j = await r.json(); if (j.error) throw new Error(j.error.message); return j.result;
+  for (let attempt = 0; ; attempt++) {                                           // the public endpoint asks for patience now and then (429): wait and ask again
+    const r = await fetch(RPC[network] || RPC.devnet, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) });
+    const j = r.status === 429 ? null : await r.json().catch(() => null);
+    if (j && !j.error) return j.result;
+    const busy = r.status === 429 || (j && j.error && j.error.code === 429);
+    if (!busy || attempt >= 5) throw new Error(j && j.error ? j.error.message : 'solana answered ' + r.status);
+    await new Promise(w => setTimeout(w, 1500 * (attempt + 1)));
+  }
 }
 async function readTransfer(network, sig){
   const tx = await rpc(network, 'getTransaction', [sig, { encoding: 'jsonParsed', commitment: 'confirmed', maxSupportedTransactionVersion: 0 }]);
@@ -107,6 +112,18 @@ async function readTransfer(network, sig){
   const mints = ins.filter(i => i.program === 'spl-token' && i.parsed && /^mintTo/.test(i.parsed.type)).map(i => ({ mint: i.parsed.info.mint, units: Number(i.parsed.info.amount ?? (i.parsed.info.tokenAmount && i.parsed.info.tokenAmount.amount) ?? 0) }));
   const memo = ins.filter(i => i.program === 'spl-memo' && typeof i.parsed === 'string').map(i => i.parsed).find(m => m.startsWith('quillcoin-ledger:'));
   return { failed: !!(tx.meta && tx.meta.err), mints, anchor: memo ? memo.slice('quillcoin-ledger:'.length) : null };
+}
+// every creation of coins the network knows about that is NOT one of the ledger's transfers, found by reading the token's own history
+async function outside(n){
+  const claimed = new Set((info.transfers || []).map(c => c.tx)), found = [];
+  const sigs = await rpc(n, 'getSignaturesForAddress', [info.mint, { limit: 1000 }]);
+  for (const s of sigs.filter(s => !s.err && !claimed.has(s.signature)).slice(0, 60)) {
+    const x = await readTransfer(n, s.signature);
+    const units = x ? x.mints.filter(m => m.mint === info.mint).reduce((t, m) => t + m.units, 0) : 0;
+    if (units > 0) found.push({ tx: s.signature, amount: units / 1e6, at: s.blockTime ? new Date(s.blockTime * 1000).toISOString() : '' });
+    await new Promise(r => setTimeout(r, 350));
+  }
+  return found;
 }
 async function solana(){
   const t = info.transfers || [], n = info.network || 'devnet';
@@ -136,8 +153,13 @@ async function solana(){
   else if (t.length) parts.push('NO TRANSFER CARRIES A FINGERPRINT YET: THEY WERE ALL MADE BEFORE ANCHORS EXISTED');
   if (supply !== null) {
     const diff = Math.round((supply - info.in_wallets) * 1000) / 1000;
-    parts.push(diff === 0 ? `SOLANA SAYS ${q3(supply)} QLL EXIST. THE LEDGER SENT ${q3(info.in_wallets)}. THE SAME`
-      : `<span class="${n === 'mainnet' ? 'no' : 'warnc'}">SOLANA SAYS ${q3(supply)} QLL EXIST. THE LEDGER SENT ${q3(info.in_wallets)}. DIFFERENCE: ${q3(Math.abs(diff))}${n === 'mainnet' ? '' : ' · ON THE TEST NETWORK, COINS WERE ALSO CREATED BY HAND WHILE THE TOKEN WAS BEING BUILT. THE REAL TOKEN STARTS AT ZERO'}</span>`);
+    if (diff === 0) parts.push(`SOLANA SAYS ${q3(supply)} QLL EXIST. THE LEDGER SENT ${q3(info.in_wallets)}. THE SAME`);
+    else {
+      say('#v-solana', 'THE NUMBERS DIFFER. READING THE TOKEN\'S WHOLE HISTORY TO FIND OUT WHY…');
+      let strays = null; try { strays = await outside(n); } catch (e) {}
+      const list = strays && strays.length ? ' CREATED OUTSIDE THE LEDGER: ' + strays.map(x => `${q3(x.amount)} QLL ON ${when(x.at)} UTC (<a href="https://explorer.solana.com/tx/${x.tx}${cluster(n)}" target="_blank" rel="noopener">SEE IT ↗</a>)`).join(', ') + '.' : strays ? ' NO CREATION OUTSIDE THE LEDGER WAS FOUND, SO COINS WERE DESTROYED BY THEIR HOLDERS OR A TRANSFER IS ON ITS WAY.' : ' THE TOKEN\'S HISTORY COULD NOT BE READ RIGHT NOW.';
+      parts.push(`<span class="${n === 'mainnet' ? 'no' : 'warnc'}">SOLANA SAYS ${q3(supply)} QLL EXIST. THE LEDGER SENT ${q3(info.in_wallets)}. DIFFERENCE: ${q3(Math.abs(diff))}.${list}${n === 'mainnet' ? '' : ' THIS IS THE TEST TOKEN: IT WAS TRIED OUT BY HAND WHILE IT WAS BEING BUILT. THE REAL TOKEN STARTS AT ZERO'}</span>`);
+    }
   } else parts.push('THE NUMBER OF COINS THAT EXIST COULD NOT BE READ');
   const clean = !wrong.length && !rewritten && !unread && supply !== null && (Math.abs(supply - info.in_wallets) < 0.0005 || n !== 'mainnet');
   say('#v-solana', parts.join('. ') + '.' + (listed ? '' : ` (THE NEWEST ${t.length} OF ${info.transfers_total} TRANSFERS.)`), wrong.length || rewritten ? 'no' : clean ? 'ok' : '');

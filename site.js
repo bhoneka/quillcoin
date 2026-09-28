@@ -270,6 +270,7 @@ function renderAccount(a){
   $('#acc-split').textContent = 'ON THE SITE ' + a.bal.toFixed(1) + ' · IN YOUR WALLET ' + a.inWallet.toFixed(1) + ' · ' + a.books.length + (a.books.length === 1 ? ' BOOK' : ' BOOKS');
   $('#acc-books').innerHTML = a.books.map(e => `<div class="own" data-own="${e.coin_number}" data-round="${e.coin_round}"><img src="book-gold.svg" alt="">${roundName(e.coin_round)} · COIN ${e.coin_number} · ${day(e.at)}</div>`).join('') || '<div>NO BOOKS YET. GO FIND ONE.</div>';
   $('#acc-claim').disabled = !(a.bal > 0);
+  $('#acc-wallet').hidden = !a.wallet; if (a.wallet) $('#acc-wallet').innerHTML = 'YOUR WALLET · <span class="addr">' + esc(short(a.wallet)) + '</span>';
 }
 $('#nav-account').onclick = e => { e.preventDefault(); if (!session) { $('#btn-discord').click(); return; } $('#account').hidden = !$('#account').hidden; };
 $('#acc-out').onclick = () => { $('#account').hidden = true; sb.auth.signOut(); };
@@ -293,7 +294,7 @@ async function showAuth(){
   updateRedeem();
   who.textContent = FLOW === 'old' ? (on ? '' : 'A COIN NEEDS AN OWNER, SO REDEEMING TAKES A DISCORD SIGN-IN.') : 'DISCORD OWNS THE COIN. YOUR MINECRAFT NAME GOES ON THE CARD.';
   if (!on) { mine.hidden = true; books.hidden = true; $('#claim').hidden = true; renderAccount(null); return; }
-  const me = { name: nameOf(session.user), pfp: pfpOf(session.user), ign: ignLocked ? $('#ign').value.trim() : '', bal: 0, inWallet: 0, total: 0, books: [] };
+  const me = { name: nameOf(session.user), pfp: pfpOf(session.user), ign: ignLocked ? $('#ign').value.trim() : '', bal: 0, inWallet: 0, total: 0, books: [], wallet: '' };
   renderAccount(me);
   try {
     const { data, error } = await sb.from('ledger').select('delta, reason, coin_round, coin_number, at').eq('user_id', session.user.id).order('at', { ascending: false });
@@ -301,13 +302,19 @@ async function showAuth(){
     const all = data || [], rows = all.filter(e => e.reason === 'find'), bal = Math.round(all.reduce((t, e) => t + Number(e.delta), 0) * 1000) / 1000;
     const { data: cl } = await sb.from('claims').select('at, amount, wallet, status, tx, network').eq('user_id', session.user.id).order('at', { ascending: false });
     const sent = (cl || []).filter(c => c.status === 'sent'), inWallet = sent.reduce((t, c) => t + Number(c.amount), 0);
+    const waiting = (cl || []).filter(c => c.status === 'pending'), onWay = waiting.reduce((t, c) => t + Number(c.amount), 0);
+    const lastWallet = sent.length ? sent[0].wallet : '';
     mine.hidden = false;
-    mine.textContent = 'ON THE SITE: ' + bal.toFixed(1) + ' QLL' + (inWallet ? ' · IN YOUR WALLET: ' + inWallet.toFixed(1) + ' QLL' : '') + (rows.length ? ' · ' + rows.length + (rows.length === 1 ? ' BOOK' : ' BOOKS') : ' · NONE YET. GO FIND ONE.');
+    mine.textContent = 'ON THE SITE: ' + bal.toFixed(1) + ' QLL' + (onWay ? ' · ON THEIR WAY TO YOUR WALLET: ' + onWay.toFixed(1) + ' QLL' : '') + (inWallet ? ' · IN YOUR WALLET: ' + inWallet.toFixed(1) + ' QLL' : '') + (rows.length ? ' · ' + rows.length + (rows.length === 1 ? ' BOOK' : ' BOOKS') : ' · NONE YET. GO FIND ONE.');
     books.hidden = !rows.length;
     books.innerHTML = rows.map(e => `<div class="card found own" data-own="${e.coin_number}" data-round="${e.coin_round}"><img class="book" src="book-gold.svg" alt=""><b>R${e.coin_round} COIN ${e.coin_number}</b><span>REDEEMED ${day(e.at)}</span></div>`).join('');
-    $('#claim').hidden = !(bal > 0 || sent.length);
+    $('#claim').hidden = !(bal > 0 || sent.length || waiting.length);
+    // the wallet used last time is remembered with the Discord account, and offered again
+    if (lastWallet && !$('#wallet').value.trim() && !walletTouched) { $('#wallet').value = lastWallet; $('#wallet-note').hidden = false; }
+    if (waiting.length) { $('#claim-msg').textContent = 'A TRANSFER OF ' + onWay.toFixed(1) + ' QLL IS BEING CONFIRMED BY THE NETWORK. THIS PAGE IS WATCHING IT.'; watchTransfer(); }
+    else { if (settleTries) $('#claim-msg').textContent = ''; settleTries = 0; }
     myBal = bal; $('#btn-claim').disabled = !(bal > 0);
-    renderAccount(Object.assign(me, { bal, inWallet, total: bal + inWallet, books: rows }));
+    renderAccount(Object.assign(me, { bal, inWallet, total: bal + inWallet + onWay, books: rows, wallet: lastWallet }));
     $('#claims').innerHTML = sent.map(c => `${Number(c.amount).toFixed(1)} QLL → <span class="addr">${esc(short(c.wallet))}</span> · ${day(c.at)} · <a href="https://explorer.solana.com/tx/${esc(c.tx)}${c.network === 'mainnet' ? '' : '?cluster=' + esc(c.network)}" target="_blank" rel="noopener">VIEW ↗</a>`).join('<br>');
   } catch (e) { mine.hidden = true; books.hidden = true; $('#claim').hidden = true; }
 }
@@ -402,12 +409,22 @@ $('#btn-redeem').onclick = () => send('/redeem');
 
 // ------------------------------------------------------------------ claiming to a wallet
 const claimLabel = () => token.network === 'mainnet' ? 'CLAIM TO WALLET' : 'CLAIM TO WALLET · TEST NETWORK';
-let armed = null, armTimer = null;
+let armed = null, armTimer = null, walletTouched = false, settleTimer = null, settleTries = 0;
+// a transfer that was left open is settled by asking the server to look it up on the network, every few seconds, until it has ended one way or the other
+function watchTransfer(){
+  if (settleTimer || settleTries >= 30 || !session) return;
+  settleTimer = setTimeout(async () => { settleTimer = null; settleTries++;
+    try { await fetch(API + '/settle', { method: 'POST', headers: { Authorization: 'Bearer ' + session.access_token } }); } catch (e) {}
+    showAuth(); }, 8000);
+}
 const disarm = () => { armed = null; clearTimeout(armTimer); $('#btn-claim').textContent = claimLabel(); $('#btn-claim').classList.remove('armed'); };
-$('#wallet').addEventListener('input', () => { $('#wallet').classList.remove('missing'); if (armed) { disarm(); $('#claim-msg').textContent = ''; } });
+$('#wallet').addEventListener('input', () => { walletTouched = true; $('#wallet-note').hidden = true; $('#wallet').classList.remove('missing'); if (armed) { disarm(); $('#claim-msg').textContent = ''; } });
 $('#btn-claim').onclick = async () => {
   const wallet = $('#wallet').value.trim(), say = t => $('#claim-msg').textContent = t;
-  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet)) { $('#wallet').classList.add('missing'); say('THAT IS NOT A SOLANA WALLET ADDRESS.'); return; }
+  const no = t => { $('#wallet').classList.add('missing'); say(t); };
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet)) return no('THAT IS NOT A SOLANA WALLET ADDRESS.');
+  if (wallet === token.mint) return no('THAT IS THE ADDRESS OF THE TOKEN, NOT OF A WALLET. PASTE THE ADDRESS YOUR WALLET APP SHOWS UNDER RECEIVE.');
+  if (wallet === token.founder) return no('THAT IS THE FOUNDER WALLET. IT ONLY EVER RECEIVES THE FOUNDER\'S TENTH.');
   if (armed !== wallet) {                                                     // first press: say exactly what is about to happen
     armed = wallet; clearTimeout(armTimer); armTimer = setTimeout(() => { disarm(); say(''); }, 15000);
     $('#btn-claim').innerHTML = 'PRESS AGAIN: SEND ' + myBal.toFixed(1) + ' QLL TO <span class="addr">' + esc(short(wallet)) + '</span>'; $('#btn-claim').classList.add('armed');
@@ -423,6 +440,7 @@ $('#btn-claim').onclick = async () => {
 // the token and the founder wallet are public: link them, and offer the token address to wallets that show nothing on their own
 fetch(API + '/ledger').then(r => r.json()).then(j => {
   token = { mint: j.mint, network: j.network || 'devnet', founder: j.founder_wallet };
+  document.body.classList.toggle('mainnet', token.network === 'mainnet');
   const q = token.network === 'mainnet' ? '' : '?cluster=' + encodeURIComponent(token.network);
   if (token.founder) { const a = $('#lnk-founder'); a.href = 'https://explorer.solana.com/address/' + encodeURIComponent(token.founder) + '/tokens' + q; a.hidden = false; }
   if (token.mint) {

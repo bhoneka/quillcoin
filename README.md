@@ -12,6 +12,7 @@ This repository is the whole site: the pages, the database rules and the API. Th
 | `ledger.html`, `ledger.js` | The public ledger, and the checks that run in the visitor's own browser. |
 | `supabase/migrations/` | Every table, rule and function in the database, in the order they were applied. |
 | `supabase/functions/api/index.ts` | The API. One function, all routes. |
+| `supabase/launch/` | One file, run once by hand before round 1 opens: it removes the test round. It refuses to run once a real round is open. |
 | `token/` | Scripts that created the QLL token on Solana's test network. |
 | `tools/` | Map rendering and the script that fingerprints a hide's recording. |
 
@@ -28,7 +29,8 @@ Base: `https://ovjeipprgkeygnlkraiu.supabase.co/functions/v1/api`
 | `GET /ledger` | anyone | Totals, transfers, and the first 1000 lines of the ledger. `GET /ledger?after=ID` continues while `more` is true. |
 | `POST /check {code}` | anyone | `unspent`, `spent` or `unknown`. Never spends anything. |
 | `POST /redeem {code, ign}` | signed-in finder | Spends the code: 1 QLL to the finder, 0.1 QLL to the founder. |
-| `POST /claim {wallet}` | signed-in finder | Sends the finder's whole site balance to their Solana wallet. |
+| `POST /claim {wallet}` | signed-in finder | Sends the finder's whole site balance to their Solana wallet. Refuses addresses that are not wallets. |
+| `POST /settle` | signed-in finder | Looks up a transfer that was left open and settles it: arrived, or back on the site. |
 | `POST /hide`, `POST /video` | the hider tool | Commits a book's fingerprint, and the fingerprint of its recording. Refused once the round is open. |
 
 A code is never stored. It arrives at `/check` and `/redeem`, is hashed at once, and only the hash is looked up.
@@ -40,6 +42,7 @@ A code is never stored. It arrives at `/check` and `/redeem`, is hashed at once,
 - **The hider cannot redeem.** Accounts on the `blacklist` table are refused.
 - **The position of a chest is sealed.** The hider tool encrypts it (AES-256-GCM) under a key derived from the book's code. The site stores the sealed box and can only open it with the code, which it sees for the first time when the book is redeemed.
 - **The ledger only grows.** Updates, deletes and truncates are refused by triggers.
+- **Coins are never returned and delivered at once.** A transfer's signature and the last block it is valid for are stored before it is sent. The balance only goes back to the site when the network has finalized a later block and the transaction is not in it.
 
 ## The ledger, and checking it yourself
 

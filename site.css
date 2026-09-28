@@ -308,3 +308,5 @@ a.rlinks { margin:0 }
 .addr { text-transform:none; letter-spacing:0 }
 .lrow .tm2 { display:none }
 @media (max-width:700px){ .lrow .tm2 { display:block; font-size:10px; letter-spacing:.06em; color:var(--dim); margin-top:3px; white-space:normal } }
+#guide { counter-reset:g } .guide summary .k::before { counter-increment:g; content:counter(g, decimal-leading-zero) }
+.mainnet .testnet-only { display:none }
