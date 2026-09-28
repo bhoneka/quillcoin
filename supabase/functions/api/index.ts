@@ -1,4 +1,4 @@
-// QuillCoin API - one function, four public routes and one for the hider tool.
+// QuillCoin API - one function: the public board and ledger, check / redeem / claim for finders, and two routes for the hider tool.
 // Nothing here ever sees a coordinate. Codes arrive only at /check and /redeem and are hashed immediately.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -64,8 +64,8 @@ Deno.serve(async (req) => {
     const cls = path === "/check" || path === "/redeem" ? "code" : path === "/hide" ? "hide" : "read";
     const max = cls === "code" ? 20 : cls === "hide" ? 60 : 120;
     if (await limited(req, cls, max)) return json(429, { ok: false, message: "slow down - try again in a minute" });
-    if (req.method === "GET" && path === "/board") return await board(Number(u.searchParams.get("round") ?? "1"));
-    if (req.method === "GET" && path === "/ledger") return await ledger();
+    if (req.method === "GET" && path === "/board") { const q = u.searchParams.get("round"); return q === null ? await boardAll() : await board(Number(q)); }
+    if (req.method === "GET" && path === "/ledger") return await ledger(u);
     if (req.method === "POST" && path === "/hide") return await hide(req);
     if (req.method === "POST" && path === "/video") return await video(req);
     if (req.method === "POST" && path === "/check") return await check(req);
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       return json(200, {
         ok: true,
         service: "quillcoin api",
-        endpoints: ["GET /board?round=N", "GET /ledger", "POST /check {code}", "POST /redeem {code, ign} + Bearer <user token>", "POST /claim {wallet} + Bearer <user token>", "POST /hide (hider tool only)", "POST /video {round, number, sha256, url} (hider only)"],
+        endpoints: ["GET /board", "GET /board?round=N", "GET /ledger", "GET /ledger?after=ID", "POST /check {code}", "POST /redeem {code, ign} + Bearer <user token>", "POST /claim {wallet} + Bearer <user token>", "POST /hide (hider tool only)", "POST /video {round, number, sha256, url} (hider only)"],
       });
     }
     return json(404, { ok: false, message: "no such endpoint" });
@@ -96,30 +96,38 @@ async function board(round: number) {
   return json(200, { ok: true, round: r, coins: list, hidden: list.length, found: list.filter((c) => c.found_at).length });
 }
 
-async function ledger() {
-  const r3 = (n: number) => Math.round(n * 1000) / 1000;
-  const { data, error } = await admin.from("ledger")
-    .select("at, delta, reason, coin_round, coin_number").order("at", { ascending: false }).limit(1000);
+const COIN_FIELDS = "round, number, hash, hidden_at, blind, server, found_at, found_ign, found_name, found_x, found_y, found_z, video_hash, video_url";
+async function boardAll() {
+  const { data: rs, error: e1 } = await admin.from("rounds").select("id, opened_at, closed_at, note").order("id");
+  if (e1) throw e1;
+  const { data: coins, error: e2 } = await admin.from("coins").select(COIN_FIELDS).order("number");
+  if (e2) throw e2;
+  const rounds = (rs ?? []).map((r) => { const list = (coins ?? []).filter((c) => c.round === r.id); return { ...r, coins: list, hidden: list.length, found: list.filter((c) => c.found_at).length }; });
+  return json(200, { ok: true, rounds });
+}
+
+const PAGE = 1000;
+/** The public ledger, oldest row first, PAGE rows at a time: GET /ledger, then GET /ledger?after=<last id> while "more" is true. */
+async function ledger(u: URL) {
+  const after = Math.max(0, Math.floor(Number(u.searchParams.get("after") ?? 0)) || 0);
+  const { data, error } = await admin.from("ledger_named").select("*").gt("id", after).order("id", { ascending: true }).limit(PAGE);
   if (error) throw error;
-  const { data: names } = await admin.from("coins").select("round, number, found_ign, found_name").not("found_at", "is", null);
-  const nameOf = new Map((names ?? []).map((c) => [`${c.round}/${c.number}`, c.found_ign || c.found_name]));
-  const rows = data ?? [];
+  const chain = data ?? [];
+  const { data: t, error: e2 } = await admin.rpc("ledger_totals");
+  if (e2) throw e2;
+  const tot = (Array.isArray(t) ? t[0] : t) ?? {};
+  const page = { ok: true, rows: Number(tot.total_rows ?? 0), head: tot.head ?? null, after, more: chain.length === PAGE, chain };
+  if (after > 0) return json(200, page);
   // coins come into existence only through a find (1 to the finder) and its founder fee (0.1); a claim moves them to a wallet, it creates nothing
-  const entries = rows.filter((e) => e.reason === "find" || e.reason === "founder-fee").map((e) => ({
-    at: e.at, delta: Number(e.delta), reason: e.reason,
-    coin: e.coin_round == null ? null : `R${e.coin_round} #${e.coin_number}`,
-    who: e.reason === "founder-fee" ? "FOUNDER" : (nameOf.get(`${e.coin_round}/${e.coin_number}`) || "anonymous"),
-  }));
-  const { data: sent } = await admin.from("claims").select("at, amount, founder_amount, wallet, tx, network, user_id").eq("status", "sent").order("at", { ascending: false }).limit(500);
-  const network = Deno.env.get("QLL_NETWORK") ?? "devnet";
-  const transfers = (sent ?? []).map((c) => ({ at: c.at, to_finder: Number(c.amount), to_founder: Number(c.founder_amount), wallet: c.user_id ? c.wallet : "founder wallet", tx: c.tx, network: c.network }));
+  const { data: sent } = await admin.from("claims").select("at, amount, founder_amount, wallet, tx, network, user_id, ledger_head").eq("status", "sent").order("at", { ascending: false }).limit(PAGE);
+  const transfers = (sent ?? []).map((c) => ({ at: c.at, to_finder: Number(c.amount), to_founder: Number(c.founder_amount), wallet: c.user_id ? c.wallet : "founder wallet", tx: c.tx, network: c.network, ledger_head: c.ledger_head }));
   return json(200, {
-    ok: true,
-    minted: r3(entries.reduce((t, e) => t + e.delta, 0)),
-    founder: r3(entries.filter((e) => e.reason === "founder-fee").reduce((t, e) => t + e.delta, 0)),
-    in_wallets: r3(transfers.reduce((t, c) => t + c.to_finder + c.to_founder, 0)),
-    founder_wallet: Deno.env.get("QLL_FOUNDER") ?? null, mint: Deno.env.get("QLL_MINT") ?? null, network,
-    entries, transfers,
+    ...page,
+    minted: Number(tot.minted ?? 0), founder: Number(tot.founder ?? 0), on_site: Number(tot.on_site ?? 0), in_wallets: Number(tot.in_wallets ?? 0),
+    founder_wallet: Deno.env.get("QLL_FOUNDER") ?? null, mint: Deno.env.get("QLL_MINT") ?? null, network: Deno.env.get("QLL_NETWORK") ?? "devnet",
+    hashing: "sha256( prev | id | at | delta | reason | coin_round | coin_number | who ), empty for a missing value, joined with |",
+    anchor: "every claim writes quillcoin-ledger:<newest hash> into its own Solana transaction",
+    transfers_total: Number(tot.transfers ?? 0), transfers,
   });
 }
 
@@ -277,8 +285,15 @@ async function claim(req: Request) {
     // one transaction, two mints: whoever looks at it sees the finder's coins and the founder's tenth arrive together
     const tx = new web3.Transaction().add(spl.createMintToInstruction(mint, account.address, authority.publicKey, units));
     if (feeUnits > 0n) tx.add(spl.createMintToInstruction(mint, founderAccount.address, authority.publicKey, feeUnits));
+    // anchor: the ledger's newest hash is written into the transaction itself, where it can never be edited
+    const { data: top } = await admin.from("ledger_public").select("hash").order("id", { ascending: false }).limit(1).maybeSingle();
+    const head = top?.hash ?? "";
+    if (head) {
+      const { Buffer } = await import("node:buffer");
+      tx.add(new web3.TransactionInstruction({ keys: [], programId: new web3.PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"), data: Buffer.from("quillcoin-ledger:" + head, "utf8") }));
+    }
     const sig = await web3.sendAndConfirmTransaction(conn, tx, [authority]);
-    await admin.from("claims").update({ status: "sent", tx: sig, network: NETWORK }).eq("id", row.id);
+    await admin.from("claims").update({ status: "sent", tx: sig, network: NETWORK, ledger_head: head || null }).eq("id", row.id);
     const cluster = NETWORK === "mainnet" ? "" : `?cluster=${NETWORK}`;
     return json(200, { ok: true, amount: Number(row.amount), tx: sig, explorer: `https://explorer.solana.com/tx/${sig}${cluster}`, message: `${Number(row.amount)} QLL sent to your wallet${NETWORK === "mainnet" ? "" : " on the test network"}` });
   } catch (e) {
