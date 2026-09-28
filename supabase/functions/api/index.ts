@@ -93,7 +93,7 @@ async function board(round: number) {
   const { data: coins, error } = await admin.from("coins")
     .select("number, hash, hidden_at, blind, server, found_at, found_ign, found_name, found_x, found_y, found_z, video_hash, video_url").eq("round", round).order("number");
   if (error) throw error;
-  const list = coins ?? [];                                                   // recordings are public from the day of the hide (the small distance hint is worth the proof)
+  const list = coins ?? [];                                                   // recordings are public from the day of the hide: the small distance hint they give away is worth the proof
   return json(200, { ok: true, round: r, coins: list, hidden: list.length, found: list.filter((c) => c.found_at).length });
 }
 
