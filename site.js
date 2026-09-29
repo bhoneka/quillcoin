@@ -100,6 +100,9 @@ $('#v-cards').onclick = () => { view = 'cards'; try { localStorage.setItem('qll-
 $('#v-list').onclick = () => { view = 'list'; try { localStorage.setItem('qll-view', view); } catch (e) {} renderRounds(); };
 
 // ------------------------------------------------------------------ the recording of a hide
+// a recording never plays on unseen: closing what holds it ends it, and only one plays at a time
+const hush = (root = document, gone = false) => root.querySelectorAll('video').forEach(v => { v.pause(); if (gone) { v.removeAttribute('src'); v.load(); } });
+document.addEventListener('play', e => { if (e.target.tagName === 'VIDEO') document.querySelectorAll('video').forEach(v => { if (v !== e.target) v.pause(); }); }, true);
 function openHide(r, n){
   const c = coinOf(r, n); if (!c || !c.video_url) return;
   const e = player(c.video_url, true); if (!e) { window.open(c.video_url, '_blank', 'noopener'); return; }
@@ -186,6 +189,7 @@ function setMapMode(on){
   mapTimers.forEach(clearTimeout); mapTimers = [];
   $('#nav-map').textContent = on ? 'CLOSE MAP' : 'MAP';
   if (on) {
+    hush();
     ensureMap(); b.classList.remove('color', 'mapdone');
     const v = backgroundView(); fm.hidden = false; map.invalidateSize(); map.setView(v.center, v.zoom, { animate: false });
     requestAnimationFrame(() => { b.classList.add('mapmode'); renderMap(); startGhosts(); });
@@ -232,6 +236,7 @@ function glyphs(el, pattern){
 }
 function closeCoin(){
   coinTimers.forEach(t => { clearInterval(t); clearTimeout(t); }); coinTimers = []; if (miniMap) { miniMap.remove(); miniMap = null; }
+  hush($('#coin-sheet'), true); $('#coin-sheet').querySelectorAll('.video').forEach(v => { v.innerHTML = ''; });
   $('#coin').hidden = true; if (location.hash.startsWith('#coin')) history.replaceState(null, '', location.pathname + location.search);
 }
 function openCoin(r, n, opts = {}){
