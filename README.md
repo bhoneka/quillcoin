@@ -26,6 +26,7 @@ Base: `https://ovjeipprgkeygnlkraiu.supabase.co/functions/v1/api`
 | --- | --- | --- |
 | `GET /board` | anyone | Every round and every book: number, fingerprint, when it was hidden, and once found: by whom, when and where. |
 | `GET /board?round=N` | anyone | One round. |
+| `GET /health` | anyone | Whether moving coins to a wallet can work right now: the network answers, the token is there with nobody able to freeze it, the site's key is the one that may create it, and how many transfers its fee money pays for. |
 | `GET /ledger` | anyone | Totals, transfers, and the first 1000 lines of the ledger. `GET /ledger?after=ID` continues while `more` is true. |
 | `POST /check {code}` | anyone | `unspent`, `spent` or `unknown`. Never spends anything. |
 | `POST /redeem {code, ign}` | signed-in finder | Spends the code: 1 QLL to the finder, 0.1 QLL to the founder. |

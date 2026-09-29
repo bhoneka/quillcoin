@@ -144,7 +144,8 @@ async function solana(){
     } catch (e) { unread++; if (cell) { cell.textContent = '?'; cell.className = 'st'; cell.title = 'could not be read: ' + e.message; } }
     if (i % 8 === 7) await new Promise(r => setTimeout(r, 1100));                // the public endpoint only takes so many questions at a time
   }
-  let supply = null; try { supply = Number((await rpc(n, 'getTokenSupply', [info.mint])).value.amount) / 1e6; } catch (e) {}
+  // the token's own account holds its count; asked for plainly, because the public doors to the network refuse the shortcut (getTokenSupply)
+  let supply = null; try { supply = Number((await rpc(n, 'getAccountInfo', [info.mint, { encoding: 'jsonParsed' }])).value.data.parsed.info.supply) / 1e6; } catch (e) {}
   renderRows();
   const listed = (info.transfers_total || t.length) === t.length;
   const parts = [];

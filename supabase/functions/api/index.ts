@@ -66,6 +66,7 @@ Deno.serve(async (req) => {
     if (await limited(req, cls, max)) return json(429, { ok: false, message: "slow down - try again in a minute" });
     if (req.method === "GET" && path === "/board") { const q = u.searchParams.get("round"); return q === null ? await boardAll() : await board(Number(q)); }
     if (req.method === "GET" && path === "/ledger") return await ledger(u);
+    if (req.method === "GET" && path === "/health") return await health();
     if (req.method === "POST" && path === "/hide") return await hide(req);
     if (req.method === "POST" && path === "/video") return await video(req);
     if (req.method === "POST" && path === "/check") return await check(req);
@@ -76,7 +77,7 @@ Deno.serve(async (req) => {
       return json(200, {
         ok: true,
         service: "quillcoin api",
-        endpoints: ["GET /board", "GET /board?round=N", "GET /ledger", "GET /ledger?after=ID", "POST /check {code}", "POST /redeem {code, ign} + Bearer <user token>", "POST /claim {wallet} + Bearer <user token>", "POST /settle + Bearer <user token>", "POST /hide (hider tool only)", "POST /video {round, number, sha256, url} (hider only)"],
+        endpoints: ["GET /board", "GET /board?round=N", "GET /ledger", "GET /ledger?after=ID", "GET /health", "POST /check {code}", "POST /redeem {code, ign} + Bearer <user token>", "POST /claim {wallet} + Bearer <user token>", "POST /settle + Bearer <user token>", "POST /hide (hider tool only)", "POST /video {round, number, sha256, url} (hider only)"],
       });
     }
     return json(404, { ok: false, message: "no such endpoint" });
@@ -280,6 +281,27 @@ async function signedIn(req: Request) {
   const asUser = createClient(SB_URL, ANON, { global: { headers: { Authorization: auth } }, auth: { persistSession: false, autoRefreshToken: false } });
   const { data: { user }, error } = await asUser.auth.getUser();
   return error || !user ? null : user;
+}
+
+/** Whether moving coins to a wallet can work right now: the network answers, the token is there, the key may create it, and there is money for the network's fees. Public facts only. */
+async function health() {
+  const MINT = Deno.env.get("QLL_MINT") ?? "", AUTHORITY = Deno.env.get("QLL_AUTHORITY") ?? "";
+  if (!MINT || !AUTHORITY) return json(200, { ok: true, claims: "soon", message: "the token does not exist yet" });
+  try {
+    const { web3, NETWORK, conn } = await chain();
+    const spl = await import("npm:@solana/spl-token@0.4.9");
+    const key = web3.Keypair.fromSecretKey(Uint8Array.from(JSON.parse(AUTHORITY)));
+    const m = await spl.getMint(conn, new web3.PublicKey(MINT));
+    const lamports = await conn.getBalance(key.publicKey);
+    return json(200, {
+      ok: true, claims: "open", network: NETWORK, token: MINT, supply: Number(m.supply) / 10 ** m.decimals, decimals: m.decimals,
+      can_be_frozen: m.freezeAuthority !== null, key_may_create: m.mintAuthority?.toBase58() === key.publicKey.toBase58(),
+      key_address: key.publicKey.toBase58(), fee_money_sol: lamports / 1e9, transfers_paid_for: Math.floor(lamports / 2_100_000),
+    });
+  } catch (e) {
+    console.error("health", e);
+    return json(502, { ok: false, message: "solana could not be reached from here" });
+  }
 }
 
 /** What became of a transaction. "failed" is only ever answered when it ran and was rejected, or when it can no longer run at all. */
