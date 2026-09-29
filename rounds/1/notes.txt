@@ -1,0 +1,66 @@
+ROUND 1 · THE HIDER'S AUDIT LOG · HOW TO READ IT
+
+audit.txt is the log the hiding tool wrote by itself. It is a copy of the file as it was when round 1 opened,
+2026-09-29 07:07:06 UTC. Nothing was cut out of it and nothing was added.
+
+   sha256   a8262e6077aea02e80684afba6b6e444ac0f832e9d887c4d02b0a96362b99cd2
+   lines    486, from 2026-09-25 00:44:39 UTC to 2026-09-29 04:36:44 UTC
+   a line   <unix time>,<what happened>
+
+The tool never writes a position, a code or the name of an account into it.
+
+
+THE TEN BOOKS OF ROUND 1
+
+   974  307  680  833  269  331  595  276  487  184
+
+Each of them has the line "stashed R1 Coin N at the end of a blind run". They were hidden on 2b2t between
+2026-09-29 02:03 and 04:36 UTC, in that order. The board shows the same ten, with the same times.
+
+
+THREE LINES THAT SAY "R1" AND ARE NOT BOOKS OF ROUND 1
+
+   2026-09-25 02:40:03 UTC   stashed R1 Coin 950 at the end of a blind run
+   2026-09-25 04:07:49 UTC   stashed R1 Coin 529 at the end of a blind run
+   2026-09-25 04:22:43 UTC   stashed R1 Coin 855 at the end of a blind run
+
+These were the first test hides, made in a singleplayer world while the tool was being built. That early
+version wrote the round from its settings, and the setting said 1. They were never on 2b2t. They were moved
+to the test round the same day, and the test round was emptied and removed before round 1. Since version 0.4.3
+a hide made in singleplayer is always written as round 0, whatever the setting says.
+
+Everything before 2026-09-28 23:39 UTC in the log is the building and testing of the tool. "DEV SKIP used"
+and "stashed R0 Coin 931 WITHOUT a blind run" belong to those tests.
+
+
+"RUN VOID"
+
+A run that ends in any other way than at its dungeon is thrown away: the flight was stopped, the module was
+switched off, the flight came down early, the game closed. The hider does not get to go on from where the
+run ended. The next run draws a new point.
+
+   2026-09-29 03:07:07 UTC   no recording: the recorder stopped by itself - run void
+
+Here the game closed by itself in the middle of a flight. That run hid nothing.
+
+   2026-09-28 23:55:02 UTC   the server did not sign the book - nothing hidden
+
+A test. No book was left in a chest.
+
+
+COIN 307
+
+Its recording has the line "recording saved" and no line "recording published". The tool records until the
+hider has been pulled away from the chest by a pearl, and this one time it did not notice that he had been
+(version 0.7.5 put that right). So this one recording was ended and published by hand.
+
+It was replaced once, before the round opened: another player stood in view during its last seconds, and
+those seconds were cut. The fingerprint on the board is the fingerprint of the file that is there now, and
+since the round opened neither of them can be changed.
+
+
+WHAT THIS LOG CANNOT PROVE
+
+It is written by a program on the hider's own computer. It makes tampering visible; it cannot make it
+impossible. That is why it is only one of four things that are published for every book, next to the
+fingerprint of its code, the recording of its hide, and the source of the tool.

@@ -1,0 +1,486 @@
+1790297079,module on
+1790297148,run started
+1790297761,module switched off during a run (flying) - run void
+1790297801,module on
+1790297823,run started
+1790297901,module switched off during a run (flying) - run void
+1790299802,module on
+1790299819,run started
+1790299855,meteor gui blocked during the run
+1790299856,meteor gui blocked during the run
+1790299856,meteor gui blocked during the run
+1790299857,meteor gui blocked during the run
+1790299857,meteor gui blocked during the run
+1790299858,meteor gui blocked during the run
+1790299858,meteor gui blocked during the run
+1790299859,meteor gui blocked during the run
+1790299861,meteor gui blocked during the run
+1790299889,meteor gui blocked during the run
+1790299889,meteor gui blocked during the run
+1790299889,meteor gui blocked during the run
+1790299890,meteor gui blocked during the run
+1790299890,meteor gui blocked during the run
+1790299890,meteor gui blocked during the run
+1790299890,meteor gui blocked during the run
+1790299890,meteor gui blocked during the run
+1790301062,module switched off during a run (flying) - run void
+1790301081,module on
+1790301180,run started
+1790301193,meteor gui blocked during the run
+1790301224,meteor gui blocked during the run
+1790301293,flight ended before the point - run void
+1790301302,run started
+1790301302,flight ended before the point - run void
+1790301323,run started
+1790301366,meteor gui blocked during the run
+1790301377,meteor gui blocked during the run
+1790301574,meteor gui blocked during the run
+1790301687,module switched off during a run (flying) - run void
+1790301704,module on
+1790301737,run started
+1790301769,flight ended before the point - run void
+1790301773,run started
+1790301785,module switched off during a run (flying) - run void
+1790302230,module on
+1790302335,run started
+1790302363,module switched off during a run (flying) - run void
+1790303137,module on
+1790303150,run started
+1790303161,flight ended before the point - run void
+1790303163,run started
+1790303174,flight ended before the point - run void
+1790303175,run started
+1790303178,module switched off during a run (flying) - run void
+1790303409,module on
+1790303416,run started
+1790303416,takeoff: hop
+1790303417,takeoff: gliding
+1790303417,takeoff: rocket
+1790303418,takeoff: airborne, goal handed to baritone
+1790303477,run started
+1790303477,takeoff: hop
+1790303478,takeoff: gliding
+1790303478,takeoff: rocket
+1790303478,takeoff: airborne, goal handed to baritone
+1790303741,meteor gui blocked during the run
+1790303790,arrived at the point
+1790303795,meteor gui blocked during the run
+1790303796,meteor gui blocked during the run
+1790303796,meteor gui blocked during the run
+1790303796,meteor gui blocked during the run
+1790303796,meteor gui blocked during the run
+1790303856,dungeon designated
+1790304003,stashed R1 Coin 950 at the end of a blind run
+1790305973,module on
+1790305979,run started
+1790305979,takeoff: hop
+1790305979,takeoff: gliding
+1790305979,takeoff: rocket
+1790305980,takeoff: airborne, goal handed to baritone
+1790306147,module switched off during a run (flying) - run void
+1790306303,module on
+1790306317,module on
+1790306365,run started
+1790306365,takeoff: hop
+1790306365,takeoff: gliding
+1790306365,takeoff: rocket
+1790306366,takeoff: airborne, goal handed to baritone
+1790306377,meteor gui blocked during the run
+1790306390,flight ended before the point - run void
+1790306808,module on
+1790306822,run started
+1790306822,takeoff: hop
+1790306823,takeoff: gliding
+1790306823,takeoff: rocket
+1790306823,takeoff: airborne, goal handed to baritone
+1790306858,DEV SKIP used - teleported to the point (test run)
+1790306858,flight ended before the point - run void
+1790307572,module on
+1790307604,run started
+1790307604,takeoff: hop
+1790307605,takeoff: gliding
+1790307605,takeoff: rocket
+1790307606,takeoff: airborne, goal handed to baritone
+1790307607,DEV SKIP used - teleported to the point (test run)
+1790307609,arrived at the point
+1790307628,dungeon designated
+1790307652,meteor gui blocked during the run
+1790307714,meteor gui blocked during the run
+1790307714,meteor gui blocked during the run
+1790307714,meteor gui blocked during the run
+1790307714,meteor gui blocked during the run
+1790307714,meteor gui blocked during the run
+1790307715,meteor gui blocked during the run
+1790307715,meteor gui blocked during the run
+1790307715,meteor gui blocked during the run
+1790307715,meteor gui blocked during the run
+1790307715,meteor gui blocked during the run
+1790307715,meteor gui blocked during the run
+1790307715,meteor gui blocked during the run
+1790307715,meteor gui blocked during the run
+1790307716,meteor gui blocked during the run
+1790307716,meteor gui blocked during the run
+1790307848,module switched off during a run (designated) - run void
+1790307958,module on
+1790307962,run started
+1790307962,takeoff: hop
+1790307962,takeoff: gliding
+1790307962,takeoff: rocket
+1790307963,takeoff: airborne, goal handed to baritone
+1790307965,DEV SKIP used - teleported to the point (test run)
+1790307970,takeoff: gliding
+1790307970,takeoff: rocket
+1790307971,takeoff: airborne, goal handed to baritone
+1790307983,arrived at the point
+1790308002,dungeon designated
+1790308016,meteor gui blocked during the run
+1790308079,meteor gui blocked during the run
+1790308115,module switched off during a run (designated) - run void
+1790309044,module on
+1790309068,run started
+1790309069,takeoff: hop
+1790309069,takeoff: gliding
+1790309069,takeoff: rocket
+1790309070,takeoff: airborne, goal handed to baritone
+1790309077,DEV SKIP used - teleported to the point (test run)
+1790309078,arrived at the point
+1790309124,dungeon designated
+1790309226,in the dungeon
+1790309269,stashed R1 Coin 529 at the end of a blind run
+1790309310,away from the stash (far from the chest) - posting the hash
+1790309945,module on
+1790309949,run started
+1790309949,takeoff: hop
+1790309950,takeoff: gliding
+1790309950,takeoff: rocket
+1790309950,takeoff: airborne, goal handed to baritone
+1790309991,DEV SKIP used - teleported to the point (test run)
+1790310006,arrived at the point
+1790310096,dungeon designated
+1790310136,in the dungeon
+1790310163,stashed R1 Coin 855 at the end of a blind run
+1790310184,away from the stash (far from the chest) - posting the hash
+1790432795,module on
+1790433330,module on
+1790433506,module on
+1790433625,module on
+1790434265,module on
+1790434635,module on
+1790434876,module on
+1790435073,module on
+1790436630,module on
+1790439580,module on
+1790464411,module on
+1790464436,module on
+1790561352,module on
+1790624103,module on
+1790624107,module on
+1790632548,module on
+1790632548,a HUD text that shows a position was switched off
+1790632548,waypoints was on - switched off, it shows positions
+1790632551,module on
+1790638743,module on
+1790638753,module on
+1790638797,run started (ring 15000-50000 from the settings, at least 1000 nether blocks from the start)
+1790638797,takeoff: hop
+1790638797,takeoff: gliding
+1790638797,takeoff: rocket
+1790638799,takeoff: hop
+1790638800,takeoff: hop
+1790638800,takeoff: gliding
+1790638800,takeoff: rocket
+1790638801,takeoff: hop
+1790638801,takeoff: hop
+1790638801,takeoff: gliding
+1790638801,takeoff: rocket
+1790638802,takeoff: hop
+1790638803,takeoff: hop
+1790638803,takeoff: gliding
+1790638804,takeoff failed four times - run void
+1790638814,run started (ring 15000-50000 from the settings, at least 1000 nether blocks from the start)
+1790638814,takeoff: hop
+1790638814,takeoff: gliding
+1790638814,takeoff: rocket
+1790638816,takeoff: hop
+1790638816,takeoff: hop
+1790638817,takeoff: gliding
+1790638817,takeoff: rocket
+1790638817,takeoff: airborne, goal handed to baritone
+1790638818,flight ended before the point - run void
+1790638858,run started (ring 15000-50000 from the settings, at least 1000 nether blocks from the start)
+1790638859,takeoff: hop
+1790638859,takeoff: gliding
+1790638859,takeoff: rocket
+1790638860,takeoff: hop
+1790638861,takeoff: gliding
+1790638861,takeoff: rocket
+1790638861,takeoff: airborne, goal handed to baritone
+1790639014,arrived at the point
+1790639046,dungeon designated
+1790639057,in the dungeon
+1790639154,meteor gui blocked during the run
+1790639155,meteor gui blocked during the run
+1790639155,meteor gui blocked during the run
+1790639156,meteor gui blocked during the run
+1790639235,meteor gui blocked during the run
+1790639246,module switched off during a run (designated) - run void
+1790639612,module on
+1790639616,module on
+1790639697,the server did not sign the decorated pages - trying the same book as plain text
+1790639702,the server did not sign the book - nothing hidden
+1790640223,module on
+1790640233,module on
+1790640248,the server signed the book: decorated
+1790640249,stashed R0 Coin 931 WITHOUT a blind run
+1790640314,meteor gui blocked during the run
+1790640361,away from the stash (far from the chest) - posting the hash
+1790641251,module on
+1790641255,module on
+1790641506,module on
+1790641516,module on
+1790641630,run started (ring 15000-50000 from the settings, at least 1000 nether blocks from the start)
+1790641630,takeoff: hop
+1790641630,takeoff: gliding
+1790641630,takeoff: rocket
+1790641631,takeoff: airborne, goal handed to baritone
+1790641804,arrived at the point
+1790641831,dungeon designated
+1790641884,in the dungeon
+1790641896,the server signed the book: decorated
+1790641896,stashed R0 Coin 284 at the end of a blind run
+1790641919,away from the stash (far from the chest) - posting the hash
+1790646978,module on
+1790646981,module on
+1790646984,recorder checked: macOS has not allowed it
+1790647014,module on
+1790647024,module on
+1790647075,module on
+1790647079,module on
+1790647084,recorder checked: ready
+1790647242,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790647242,takeoff: hop
+1790647242,takeoff: gliding
+1790647242,takeoff: rocket
+1790647242,recording started
+1790647243,takeoff: airborne, goal handed to baritone
+1790647320,arrived at the point
+1790647367,dungeon designated
+1790647387,in the dungeon
+1790647409,the server signed the book: decorated
+1790647409,stashed R1 Coin 974 at the end of a blind run
+1790647417,away from the stash (far from the chest) - posting the hash
+1790647417,recording saved: R1 Coin 974
+1790647463,recording published: R1 Coin 974
+1790648477,module on
+1790648481,module on
+1790648486,recorder checked: ready
+1790648506,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790648507,takeoff: hop
+1790648507,takeoff: gliding
+1790648507,takeoff: rocket
+1790648507,recording started
+1790648510,takeoff: airborne, goal handed to baritone
+1790649525,module on
+1790649529,module on
+1790649534,recorder checked: ready
+1790649554,recording started, 3 s before the run
+1790649557,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790649557,takeoff: hop
+1790649557,takeoff: gliding
+1790649557,takeoff: rocket
+1790649559,takeoff: hop
+1790649559,takeoff: gliding
+1790649559,takeoff: rocket
+1790649560,takeoff: airborne, goal handed to baritone
+1790649815,arrived at the point
+1790649852,dungeon designated
+1790649897,in the dungeon
+1790649959,recording saved: a run without a book
+1790649959,module switched off during a run (designated) - run void
+1790650281,module on
+1790650284,module on
+1790650290,recorder checked: ready
+1790650302,recording started, 3 s before the run
+1790650305,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790650305,takeoff: hop
+1790650305,takeoff: gliding
+1790650305,takeoff: rocket
+1790650306,takeoff: airborne, goal handed to baritone
+1790650593,the flight came down before the point - run void
+1790650593,recording saved: a run without a book
+1790650609,recording started, 3 s before the run
+1790650612,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790650612,takeoff: hop
+1790650612,takeoff: gliding
+1790650612,takeoff: rocket
+1790650613,takeoff: airborne, goal handed to baritone
+1790650670,arrived at the point
+1790650702,dungeon designated
+1790650775,in the dungeon
+1790650800,the server signed the book: decorated
+1790650800,stashed R1 Coin 307 at the end of a blind run
+1790651227,no recording: the recorder stopped by itself - run void
+1790651227,recording saved: R1 Coin 307
+1790651782,module on
+1790651782,baritone's map of visited regions is off
+1790651785,module on
+1790651785,baritone's map of visited regions is off
+1790651791,recorder checked: ready
+1790652304,module on
+1790652304,baritone's map of visited regions is off
+1790652307,module on
+1790652307,baritone's map of visited regions is off
+1790652313,recorder checked: ready
+1790652346,recording started, 3 s before the run
+1790652349,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790652349,takeoff: hop
+1790652350,takeoff: gliding
+1790652350,takeoff: rocket
+1790652351,takeoff: hop
+1790652352,takeoff: gliding
+1790652352,takeoff: rocket
+1790652352,takeoff: airborne, goal handed to baritone
+1790652541,arrived at the point
+1790652560,dungeon designated
+1790652566,in the dungeon
+1790652582,the server signed the book: decorated
+1790652583,stashed R1 Coin 680 at the end of a blind run
+1790652595,away from the stash (pulled away) - posting the hash
+1790652600,recording saved: R1 Coin 680
+1790652631,recording published: R1 Coin 680
+1790652822,recording started, 3 s before the run
+1790652825,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790652825,takeoff: hop
+1790652825,takeoff: gliding
+1790652825,takeoff: rocket
+1790652827,takeoff: hop
+1790652828,takeoff: gliding
+1790652828,takeoff: rocket
+1790652829,takeoff: airborne, goal handed to baritone
+1790653042,arrived at the point
+1790653057,dungeon designated
+1790653158,in the dungeon
+1790653188,the server signed the book: decorated
+1790653189,stashed R1 Coin 833 at the end of a blind run
+1790653308,away from the stash (pulled away) - posting the hash
+1790653313,recording saved: R1 Coin 833
+1790653365,recording published: R1 Coin 833
+1790653410,recording started, 3 s before the run
+1790653413,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790653413,takeoff: hop
+1790653414,takeoff: gliding
+1790653414,takeoff: rocket
+1790653416,takeoff: airborne, goal handed to baritone
+1790653638,arrived at the point
+1790653653,dungeon designated
+1790653764,in the dungeon
+1790653799,the server signed the book: decorated
+1790653800,stashed R1 Coin 269 at the end of a blind run
+1790653959,away from the stash (pulled away) - posting the hash
+1790653964,recording saved: R1 Coin 269
+1790654030,recording published: R1 Coin 269
+1790654068,recording started, 3 s before the run
+1790654071,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790654071,takeoff: hop
+1790654072,takeoff: gliding
+1790654072,takeoff: rocket
+1790654073,takeoff: hop
+1790654073,takeoff: gliding
+1790654074,takeoff: rocket
+1790654074,takeoff: airborne, goal handed to baritone
+1790654265,arrived at the point
+1790654286,dungeon designated
+1790654343,in the dungeon
+1790654363,the server signed the book: decorated
+1790654363,stashed R1 Coin 331 at the end of a blind run
+1790654438,away from the stash (pulled away) - posting the hash
+1790654443,recording saved: R1 Coin 331
+1790654486,recording published: R1 Coin 331
+1790654527,recording started, 3 s before the run
+1790654530,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790654530,takeoff: hop
+1790654530,takeoff: gliding
+1790654530,takeoff: rocket
+1790654532,takeoff: hop
+1790654532,takeoff: gliding
+1790654532,takeoff: rocket
+1790654533,takeoff: airborne, goal handed to baritone
+1790654725,arrived at the point
+1790654764,dungeon designated
+1790654868,in the dungeon
+1790654884,the server signed the book: decorated
+1790654884,stashed R1 Coin 595 at the end of a blind run
+1790654891,away from the stash (pulled away) - posting the hash
+1790654896,recording saved: R1 Coin 595
+1790654937,recording published: R1 Coin 595
+1790655014,recording started, 3 s before the run
+1790655017,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790655017,takeoff: hop
+1790655018,takeoff: gliding
+1790655018,takeoff: rocket
+1790655018,takeoff: airborne, goal handed to baritone
+1790655123,the flight came down before the point - run void
+1790655123,recording saved: a run without a book
+1790655146,recording started, 3 s before the run
+1790655149,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790655149,takeoff: hop
+1790655149,takeoff: gliding
+1790655149,takeoff: rocket
+1790655150,takeoff: airborne, goal handed to baritone
+1790655322,arrived at the point
+1790655352,dungeon designated
+1790655404,in the dungeon
+1790655434,the server signed the book: decorated
+1790655434,stashed R1 Coin 276 at the end of a blind run
+1790655523,away from the stash (pulled away) - posting the hash
+1790655528,recording saved: R1 Coin 276
+1790655571,recording published: R1 Coin 276
+1790655586,recording started, 3 s before the run
+1790655589,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790655589,takeoff: hop
+1790655589,takeoff: gliding
+1790655589,takeoff: rocket
+1790655590,takeoff: airborne, goal handed to baritone
+1790655595,the flight came down right after takeoff - taking off again
+1790655596,takeoff: hop
+1790655596,takeoff: gliding
+1790655596,takeoff: rocket
+1790655596,takeoff: hop
+1790655596,takeoff: hop
+1790655596,takeoff: gliding
+1790655596,takeoff: rocket
+1790655597,takeoff: hop
+1790655597,takeoff: gliding
+1790655597,takeoff: rocket
+1790655597,takeoff: hop
+1790655597,takeoff: hop
+1790655597,takeoff: gliding
+1790655597,takeoff: rocket
+1790655597,takeoff: hop
+1790655598,takeoff: hop
+1790655598,takeoff: hop
+1790655598,takeoff: gliding
+1790655598,takeoff: rocket
+1790655599,takeoff: airborne, goal handed to baritone
+1790655733,arrived at the point
+1790655759,dungeon designated
+1790655841,in the dungeon
+1790655857,the server signed the book: decorated
+1790655857,stashed R1 Coin 487 at the end of a blind run
+1790656035,away from the stash (pulled away) - posting the hash
+1790656040,recording saved: R1 Coin 487
+1790656089,recording published: R1 Coin 487
+1790656212,recording started, 3 s before the run
+1790656215,run started (ring 15000-50000 from the site, at least 1000 nether blocks from the start)
+1790656215,takeoff: hop
+1790656215,takeoff: gliding
+1790656215,takeoff: rocket
+1790656216,takeoff: airborne, goal handed to baritone
+1790656341,arrived at the point
+1790656370,dungeon designated
+1790656487,in the dungeon
+1790656538,the server signed the book: decorated
+1790656538,stashed R1 Coin 184 at the end of a blind run
+1790656551,away from the stash (pulled away) - posting the hash
+1790656557,recording saved: R1 Coin 184
+1790656604,recording published: R1 Coin 184

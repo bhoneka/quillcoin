@@ -9,6 +9,7 @@ This repository is the whole site: the pages, the database rules and the API. Th
 | Path | What it is |
 | --- | --- |
 | `index.html`, `site.css`, `site.js` | The site: redeem, the rounds and their books, the map, the guide. |
+| `rounds/` | One folder per round that has opened: the hider's audit log as it was at that moment (`audit.txt`), and how to read it (`notes.txt`). |
 | `vendor/` | The two libraries the site uses (supabase-js 2.117.2, Leaflet 1.9.4), taken from the npm registry and served from here, each pinned by its hash in `index.html`. The site loads no code from anywhere else. |
 | `ledger.html`, `ledger.js` | The public ledger, and the checks that run in the visitor's own browser. |
 | `supabase/migrations/` | Every table, rule and function in the database, in the order they were applied. |

@@ -20,6 +20,7 @@ const isFile = u => /\.(mp4|webm|mov)(\?|$)/i.test(String(u));
 // a recording either lives on this site (a file, played right here and downloadable, so anyone can hash it) or on YouTube
 const player = (u, auto) => isFile(u) ? `<video controls playsinline preload="metadata" ${auto ? 'autoplay' : ''} src="${esc(u)}"></video>` : embedUrl(u) ? `<iframe src="${embedUrl(u)}${auto ? '?autoplay=1' : ''}" allow="${auto ? 'autoplay; ' : ''}fullscreen" loading="lazy"></iframe>` : '';
 const roundName = id => 'ROUND ' + id;
+const AUDITS = [1];                                                           // the rounds whose audit log is published, in rounds/<n>/
 const short = a => a.slice(0, 4) + '…' + a.slice(-4);
 
 // ------------------------------------------------------------------ whatever arrives from outside is cut to shape before anything is drawn with it
@@ -89,7 +90,7 @@ function renderRounds(){
         <p class="rstat">ITS BOOKS ARE BETWEEN ${blocks(ringOf(r.id).min)} AND ${blocks(ringOf(r.id).max)} BLOCKS FROM SPAWN, IN ANY DIRECTION.</p>
         <div class="stats"><div class="stat"><b>${r.coins.length}</b><span>HIDDEN</span></div><div class="stat"><b>${found.length}</b><span>FOUND</span></div><div class="stat"><b>${last}</b><span>SINCE LAST FIND</span></div></div>
         ${body}
-        <p class="rlinks"><a href="${API}/board?round=${r.id}" target="_blank" rel="noopener">THIS ROUND'S LIST OF FINGERPRINTS (RAW DATA) ↗</a></p>
+        <p class="rlinks"><a href="${API}/board?round=${r.id}" target="_blank" rel="noopener">THIS ROUND'S LIST OF FINGERPRINTS (RAW DATA) ↗</a>${AUDITS.includes(r.id) ? ` · <a href="rounds/${r.id}/audit.txt" target="_blank" rel="noopener">THE HIDER'S AUDIT LOG ↗</a> · <a href="rounds/${r.id}/notes.txt" target="_blank" rel="noopener">HOW TO READ IT ↗</a>` : ''}</p>
       </div></div></div></div>`;
   }).join('') || '<div class="card empty">NOTHING HERE YET</div>';
   $('#map-count').textContent = foundOnes().length + ' ON THE MAP · ' + allCoins().filter(c => !c.found_at).length + ' STILL OUT';
