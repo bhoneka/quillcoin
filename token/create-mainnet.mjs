@@ -63,6 +63,9 @@ else {
 fs.chmodSync(keyPath, 0o600);
 const address = kp.publicKey.toBase58();
 console.log('\nThe address that creates QLL:', address);
+const showCode = async () => {                                                  // the same address as a code a phone can scan, so nobody has to type it
+  try { const q = await import('qrcode'); console.log(await q.default.toString(address, { type: 'terminal', small: true })); } catch (e) { }
+};
 
 const [conn, rpcUrl] = await connect();
 
@@ -72,6 +75,8 @@ const have = fs.existsSync(infoPath) ? JSON.parse(fs.readFileSync(infoPath, 'utf
 if (!have && bal < NEED * LAMPORTS_PER_SOL) {
   console.log(`\nIt holds ${bal / LAMPORTS_PER_SOL} SOL and needs at least ${NEED}.`);
   console.log(rehearse ? 'Get test SOL for it at https://faucet.solana.com (choose devnet).' : `Send ${SEND} SOL to it from a wallet of your own. Check the address twice; a transfer cannot be taken back.`);
+  await showCode();
+  console.log('Scan the code above with your wallet app, or paste the address. Then send.');
   console.log('Waiting for it to arrive (Ctrl+C stops; running the script again picks up here)...');
   for (let i = 0; i < 360 && bal < NEED * LAMPORTS_PER_SOL; i++) { await sleep(10_000); try { bal = await conn.getBalance(kp.publicKey); } catch (e) { } }
   if (bal < NEED * LAMPORTS_PER_SOL) stop('Nothing arrived within an hour. Run the script again once it has been sent.');
