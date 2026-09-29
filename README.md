@@ -14,7 +14,7 @@ This repository is the whole site: the pages, the database rules and the API. Th
 | `supabase/functions/api/index.ts` | The API. One function, all routes. |
 | `supabase/launch/` | One file, run once by hand before round 1 opens: it removes the test round. It refuses to run once a real round is open. |
 | `token/` | `create-mainnet.mjs` creates the real QLL token: 6 decimals, a supply of 0, no freeze authority. `--rehearse` runs the same steps on the test network. The other scripts are the ones the test network was tried with. |
-| `tools/` | Map rendering, and `publish_hide.py`: it cuts the recording of a hide down to the run itself, removes the sound and everything stored inside the file, stores it, and commits its fingerprint. |
+| `tools/` | Map rendering, and `publish_hide.py`: it cuts the recording of a hide down to the run itself, removes the sound and everything stored inside the file, stores it, and commits its fingerprint. `open_round.py` sets the moment a round opens, and refuses while a book or a recording is missing. |
 
 The site is static and is served by GitHub Pages. Sign-in, the database and the API run on Supabase.
 

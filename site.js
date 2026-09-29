@@ -28,12 +28,15 @@ const coinOf = (r, n) => allCoins().find(c => c.round === r && c.number === n);
 const placed = c => !!c.found_at && Number.isInteger(c.found_x) && Number.isInteger(c.found_z);
 const foundOnes = () => allCoins().filter(placed);
 
+const until = ms => { const m = Math.max(0, Math.round(ms / 6e4)), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60); return 'IN ' + (d ? d + (d === 1 ? ' DAY ' : ' DAYS ') : '') + (d || h ? h + (h === 1 ? ' HOUR' : ' HOURS') : (m % 60) + ' MINUTES'); };
 function roundStatus(r){
   const now = Date.now(), opened = r.opened_at && Date.parse(r.opened_at) <= now, closed = r.closed_at && Date.parse(r.closed_at) <= now;
   if (r.id === 0) return 'THE TEST ROUND · ITS COINS ARE WORTH NOTHING · IT IS HERE SO THE WHOLE MACHINE CAN BE TRIED IN PUBLIC';
   if (closed) return 'CLOSED ' + day(r.closed_at);
   if (opened) return 'OPEN SINCE ' + day(r.opened_at) + ' · ITS LIST OF BOOKS WAS LOCKED BEFORE THAT DAY';
-  if (r.planned && r.coins.length >= r.planned) return 'NOT OPEN YET · ALL ' + r.planned + ' BOOKS ARE HIDDEN · REDEEMING STARTS WHEN THE ROUND OPENS';
+  const full = r.planned && r.coins.length >= r.planned;
+  if (r.opened_at && full) return 'OPENS ' + stamp(r.opened_at).replace(/:\d\d UTC$/, ' UTC') + ' · ' + until(Date.parse(r.opened_at) - now) + ' · ALL ' + r.planned + ' BOOKS ARE HIDDEN AND THEIR LIST IS LOCKED FROM THAT MOMENT';
+  if (full) return 'NOT OPEN YET · ALL ' + r.planned + ' BOOKS ARE HIDDEN · REDEEMING STARTS WHEN THE ROUND OPENS';
   return 'NOT OPEN YET · ' + (r.planned ? r.coins.length + ' OF ' + r.planned + ' BOOKS HIDDEN SO FAR' : 'ITS BOOKS ARE STILL BEING HIDDEN');
 }
 // a recording opens when its book is found: until then only its fingerprint is public (a dungeon's floor can give its place away)
