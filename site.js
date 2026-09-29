@@ -115,7 +115,7 @@ document.addEventListener('click', e => {
   const bar = e.target.closest('[data-toggle]');
   if (bar) { const id = +bar.dataset.toggle, el = bar.parentElement, on = !el.classList.contains('open'); el.classList.toggle('open', on); bar.setAttribute('aria-expanded', on); on ? openSet.add(id) : openSet.delete(id); return; }
   const hide = e.target.closest('a[data-hide]');
-  if (hide) { e.preventDefault(); const [r, n] = hide.dataset.hide.split('-').map(Number); openHide(r, n); return; }
+  if (hide) { e.preventDefault(); const [r, n] = hide.dataset.hide.split('-').map(Number); openCoin(r, n, { watch: true }); return; }   // the recording is watched on the book's own card
   if (e.target.closest('a')) return;
   const own = e.target.closest('[data-own]');
   if (own) { $('#account').hidden = true; openCoin(+own.dataset.round, +own.dataset.own); return; }
@@ -129,14 +129,6 @@ $('#v-list').onclick = () => { view = 'list'; try { localStorage.setItem('qll-vi
 // a recording never plays on unseen: closing what holds it ends it, and only one plays at a time
 const hush = (root = document, gone = false) => root.querySelectorAll('video').forEach(v => { v.pause(); if (gone) { v.removeAttribute('src'); v.load(); } });
 document.addEventListener('play', e => { if (e.target.tagName === 'VIDEO') document.querySelectorAll('video').forEach(v => { if (v !== e.target) v.pause(); }); }, true);
-function openHide(r, n){
-  const c = coinOf(r, n); if (!c || !c.video_url) return;
-  const e = player(c.video_url, true); if (!e) { window.open(c.video_url, '_blank', 'noopener'); return; }
-  $('#proof').hidden = false; $('#proof-title').textContent = 'PROOF · ' + roundName(r) + ' · COIN ' + c.number;
-  $('#proof-video').innerHTML = e;
-  $('#proof-meta').innerHTML = 'HIDDEN ' + day(c.hidden_at) + (c.video_hash ? ' · RECORDING SHA256 <span style="text-transform:none">' + c.video_hash.slice(0, 16) + '…</span>' : '') + ` · <a href="${esc(c.video_url)}" target="_blank" rel="noopener" style="text-decoration:underline">${isFile(c.video_url) ? 'THE FILE ITSELF ↗' : 'OPEN ON YOUTUBE ↗'}</a>`;
-  $('#proof').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
 
 // ------------------------------------------------------------------ the map: Leaflet over 2b2t.place's tiles (their 1M² world download is CC0)
 // 512 px tiles, level L = 2^L blocks per pixel. Leaflet zoom = 10 - level, one latlng unit = 1024 blocks, block (0,0) = latlng (0,0).
@@ -306,6 +298,9 @@ function openCoin(r, n, opts = {}){
   $('#coin-x').onclick = closeCoin;
   $('#coin-open-map').onclick = () => { closeCoin(); setMapMode(true); if (at) setTimeout(() => goTo(c.found_x, c.found_z), 1000); };
   if (reveal && $('#coin-claim')) $('#coin-claim').onclick = () => { closeCoin(); toClaim(); };
+  if (opts.watch && sheet.querySelector('.video')) coinTimers.push(setTimeout(() => {           // came here to watch: bring the recording into view and start it
+    const v = sheet.querySelector('.video'), m = v.querySelector('video'); v.scrollIntoView({ block: 'center' }); if (m) m.play().catch(() => {});
+  }, 80));
   miniMap = L.map('coin-map', { crs: L.CRS.Simple, minZoom: -1, maxZoom: 12, zoomControl: false, attributionControl: false, zoomSnap: 0, scrollWheelZoom: false });
   placeLayer('base', tileOpts()).addTo(miniMap); placeLayer('overlay', tileOpts()).addTo(miniMap);
   if (at) { miniMap.setView(toLatLng(c.found_x, c.found_z), 5.5); L.marker(toLatLng(c.found_x, c.found_z), { icon: bookIcon, interactive: false }).addTo(miniMap); }
