@@ -381,7 +381,12 @@ async function claim(req: Request) {
     const units = BigInt(Math.round(Number(row.amount) * 1000)) * 1000n;       // 6 decimals
     const feeUnits = BigInt(Math.round(Number(row.founder_amount) * 1000)) * 1000n;
     // one transaction, two mints: whoever looks at it sees the finder's coins and the founder's tenth arrive together
-    tx = new web3.Transaction().add(spl.createMintToInstruction(mint, account.address, authority.publicKey, units));
+    tx = new web3.Transaction();
+    if (NETWORK === "mainnet") {
+      // a small tip to the network (about 0.00001 SOL, paid by the token's own key), so a transfer is not left waiting when Solana is busy
+      tx.add(web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 120_000 }), web3.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 }));
+    }
+    tx.add(spl.createMintToInstruction(mint, account.address, authority.publicKey, units));
     if (feeUnits > 0n) tx.add(spl.createMintToInstruction(mint, founderAccount.address, authority.publicKey, feeUnits));
     // anchor: the ledger's newest hash is written into the transaction itself, where it can never be edited
     const { data: top } = await admin.from("ledger_public").select("hash").order("id", { ascending: false }).limit(1).maybeSingle();
