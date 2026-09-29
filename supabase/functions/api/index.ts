@@ -42,6 +42,19 @@ function caller(req: Request): string {
   const groups = ip.includes("::") ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill("0"), ...t] : h;
   return groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, "")).join(":") + "::/64";
 }
+/**
+ * Counts a visit without keeping who it was: what is stored is a fingerprint of the caller's address, salted with a secret and with the day.
+ * It cannot be turned back into an address, and tomorrow the same visitor gets another one. Only the site's own pages are counted.
+ */
+async function noteVisit(req: Request, load: boolean): Promise<void> {
+  try {
+    if (!/^https:\/\/(www\.)?quillcoin\.gg$/.test(req.headers.get("origin") ?? "")) return;
+    const who = caller(req);
+    if (who === "unknown") return;
+    const { error } = await admin.rpc("note_visit", { p_who: await sha256(new Date().toISOString().slice(0, 10) + "|" + SERVICE + "|" + who), p_load: load });
+    if (error) console.error("visit", error.message);
+  } catch (e) { console.error("visit", String(e).slice(0, 200)); }
+}
 /** Hits per minute per caller, counted in the database (edge isolates share nothing). The 100-bit code space is the real defence; this just keeps abuse from costing anything. */
 async function limited(req: Request, cls: string, max: number): Promise<boolean> {
   const { data, error } = await admin.rpc("bump_rate", { p_key: cls + ":" + caller(req), p_max: max });
@@ -88,8 +101,8 @@ Deno.serve(async (req) => {
     const cls = path === "/check" || path === "/redeem" ? "code" : path === "/claim" || path === "/settle" ? "move" : path === "/hide" || path === "/video" ? "hide" : "read";
     const max = cls === "code" ? 20 : cls === "move" ? 30 : cls === "hide" ? 60 : 120;
     if (await limited(req, cls, max)) return json(429, { ok: false, message: "slow down - try again in a minute" });
-    if (req.method === "GET" && path === "/board") { const q = u.searchParams.get("round"); return q === null ? await boardAll() : await board(Number(q)); }
-    if (req.method === "GET" && path === "/ledger") return await ledger(u);
+    if (req.method === "GET" && path === "/board") { const q = u.searchParams.get("round"); if (q === null) await noteVisit(req, true); return q === null ? await boardAll() : await board(Number(q)); }
+    if (req.method === "GET" && path === "/ledger") { if (!u.searchParams.has("after")) await noteVisit(req, false); return await ledger(u); }
     if (req.method === "GET" && path === "/health") return await health();
     if (req.method === "POST" && path === "/hide") return await hide(req);
     if (req.method === "POST" && path === "/video") return await video(req);
