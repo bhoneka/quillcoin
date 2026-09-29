@@ -23,7 +23,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="description" content="Signed books hidden in 2b2t dungeon chests. Find one. Redeem the code. Own a coin.">
 <link rel="stylesheet" href="vendor/leaflet-1.9.4.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H">
-<link rel="stylesheet" href="site.css?v=24">
+<link rel="stylesheet" href="site.css?v=25">
 </head>
 <body class="notoken claims-soon">
 <div class="bar">
@@ -101,18 +101,14 @@
     </div>
   </section>
 
-  <section>
-    <h2>THE SHORT VERSION</h2>
+  <section id="guide">
+    <h2>THE GUIDE</h2>
     <ol class="steps">
       <li><span>A book signed by <b>QuillCoin</b> sits in a dungeon chest somewhere on 2b2t. Its code is on page three.</span></li>
       <li><span>Whoever holds the book can use it. Find it, loot it, trade for it.</span></li>
       <li><span>Type the code at the top of this page. First one wins.</span></li>
       <li><span><span class="token-only">You get one QuillCoin. </span>The book's card turns gold with your name on it, and its chest appears on the map.</span></li>
     </ol>
-  </section>
-
-  <section id="guide">
-    <h2>THE GUIDE</h2>
 
     <details class="guide" id="g-what"><summary><span class="k"></span><span>What is this?</span><span class="pm">+</span></summary><div class="gb">
       <p>A treasure hunt on 2b2t. Signed books are hidden in dungeon chests, and every book has a code that works once. Type the code in here first and the book is yours<span class="token-only">, along with one QuillCoin, written <b>QLL</b></span>.</p>
@@ -141,6 +137,14 @@
       <p class="token-only">Then the book's card turns gold, the chest it sat in appears on the map, <b>1 QLL</b> lands on your account, and <b>0.1 QLL</b> goes to the founder. It costs you nothing, and you need no wallet for any of it.</p>
       <p><b>Why Discord?</b> So the book belongs to somebody. The site gets your display name and avatar, and the account's email because sign-in needs it; the email is never shown or used. Your Minecraft name is only the label on the card: the site does not check that it is yours.</p>
       <p>The site counts visits, not people: no cookies, no trackers, nothing from another company. So that a visitor is not counted twice in a day it keeps a scrambled fingerprint of their address, which changes every day and cannot be turned back into the address.</p>
+    </div></details>
+
+    <details class="guide" id="g-rules"><summary><span class="k"></span><span>The rules</span><span class="pm">+</span></summary><div class="gb">
+      <p><b>No hints.</b> The books were hidden blind: the tool never shows the hider a code or a coordinate.</p>
+      <p><b>The list is locked.</b> Every book's fingerprint was published before its round opened. Nothing can be added or swapped afterwards.</p>
+      <p class="token-only"><b>Coins only exist when found.</b> Each redemption creates 1 for the finder and 0.1 for a public founder wallet. That fee is the founder's only income, visible from the first coin. No presale. Nothing is sold by the founder. No price is promised: this is a game reward; if people trade it, that's theirs.</p>
+      <p class="notoken-only"><b>First come, first served.</b> One book, one coin, for whoever redeems it first. Nothing is sold. No crypto.</p>
+      <p><b>Lost books stay lost.</b> A book destroyed with its chest is gone.</p>
     </div></details>
 
     <details class="guide" id="g-hide"><summary><span class="k"></span><span>How were the books hidden?</span><span class="pm">+</span></summary><div class="gb">
@@ -231,15 +235,6 @@
 
   </section>
 
-  <section class="rules">
-    <h2>RULES</h2>
-    <p><b>No hints.</b> The books were hidden blind: the tool never shows the hider a code or a coordinate.</p>
-    <p><b>The list is locked.</b> Every book's fingerprint was published before its round opened. Nothing can be added or swapped afterwards.</p>
-    <p class="token-only"><b>Coins only exist when found.</b> Each redemption creates 1 for the finder and 0.1 for a public founder wallet. That fee is the founder's only income, visible from the first coin. No presale. Nothing is sold by the founder. No price is promised: this is a game reward; if people trade it, that's theirs.</p>
-    <p class="notoken-only"><b>First come, first served.</b> One book, one coin, for whoever redeems it first. Nothing is sold. No crypto.</p>
-    <p><b>Lost books stay lost.</b> A book destroyed with its chest is gone.</p>
-  </section>
-
   <footer>
     <a href="ledger.html">THE LEDGER</a>
     <a id="lnk-founder" href="#" target="_blank" rel="noopener" hidden>FOUNDER WALLET ↗</a>
@@ -252,6 +247,6 @@
 </main>
 <script src="vendor/supabase-js-2.117.2.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok"></script>
 <script src="vendor/leaflet-1.9.4.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"></script>
-<script src="site.js?v=24"></script>
+<script src="site.js?v=25"></script>
 </body>
 </html>
