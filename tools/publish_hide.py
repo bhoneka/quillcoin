@@ -160,7 +160,7 @@ def send(e, api, clip, rnd, number):
     """Stores the clip and commits it to its coin. Returns (done, what was said, fingerprint)."""
     sha = hashlib.sha256(open(clip, 'rb').read()).hexdigest()
     name = f"r{rnd}/coin-{number}-{secrets.token_hex(8)}.mp4"
-    s, body = call(f"{e['SUPABASE_URL']}/storage/v1/object/hides/{name}", open(clip, 'rb').read(), {'authorization': 'Bearer ' + e['SUPABASE_SERVICE_KEY'], 'apikey': e['SUPABASE_SERVICE_KEY'], 'content-type': 'video/mp4', 'cache-control': 'max-age=31536000', 'x-upsert': 'false'})
+    s, body = call(f"{e['SUPABASE_URL']}/storage/v1/object/hides/{name}", open(clip, 'rb').read(), {'authorization': 'Bearer ' + e['SUPABASE_SERVICE_KEY'], 'apikey': e['SUPABASE_SERVICE_KEY'], 'content-type': 'video/mp4', 'cache-control': 'max-age=3600', 'x-upsert': 'false'})
     if s >= 300: return False, f'the storage refused it ({s}): {body[:120]}', sha
     url = f"{e['SUPABASE_URL']}/storage/v1/object/public/hides/{name}"
     s, body = call(api + '/video', json.dumps(dict(round=rnd, number=number, sha256=sha, url=url)).encode(), {'authorization': 'Bearer ' + e['HIDER_KEY'], 'content-type': 'application/json', 'user-agent': 'quillcoin-tools'})
