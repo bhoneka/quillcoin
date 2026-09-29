@@ -8,6 +8,15 @@ const when = s => String(s).replace('T', ' ').slice(0, 19);
 const RPC = { devnet: 'https://api.devnet.solana.com', testnet: 'https://api.testnet.solana.com', mainnet: 'https://solana-rpc.publicnode.com' };   // a public endpoint that answers browsers; this site is not in between
 const cluster = n => n === 'mainnet' ? '' : '?cluster=' + encodeURIComponent(n);
 const SHOWN = 200;
+// what arrives is looked at before it is shown: a ledger that does not look like one is not drawn at all
+const HEX = /^[0-9a-f]{64}$/, SIG = /^[1-9A-HJ-NP-Za-km-z]{64,90}$/, ADDR = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/, AT = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|[+-]\d\d:\d\d)$/, NETS = ['mainnet', 'devnet', 'testnet'];
+const whole = v => v === null || v === undefined || Number.isSafeInteger(v);
+const okRow = r => !!r && Number.isSafeInteger(r.id) && typeof r.at === 'string' && AT.test(r.at) && /^-?\d{1,9}\.\d{3}$/.test(String(r.delta)) && typeof r.reason === 'string' && /^[a-z-]{1,40}$/.test(r.reason)
+  && whole(r.coin_round) && whole(r.coin_number) && (r.who === 'founder' || r.who === 'finder') && (r.prev === null || r.prev === undefined || HEX.test(r.prev)) && HEX.test(String(r.hash));
+const okTransfer = c => !!c && typeof c.at === 'string' && AT.test(c.at) && SIG.test(String(c.tx)) && typeof c.wallet === 'string' && c.wallet.length < 60 && NETS.includes(c.network)
+  && Number.isFinite(c.to_finder) && Number.isFinite(c.to_founder) && (c.ledger_head === null || c.ledger_head === undefined || HEX.test(c.ledger_head));
+const okInfo = i => (i.head === null || HEX.test(String(i.head))) && (i.mint === null || ADDR.test(String(i.mint))) && (i.founder_wallet === null || ADDR.test(String(i.founder_wallet))) && NETS.includes(i.network)
+  && ['minted', 'founder', 'on_site', 'in_wallets'].every(k => Number.isFinite(i[k])) && Array.isArray(i.chain) && Array.isArray(i.transfers) && i.transfers.every(okTransfer);
 
 let info = null, chain = [], shown = SHOWN, marks = new Map(), anchors = new Map();
 
@@ -50,9 +59,11 @@ function say(id, text, cls){ const el = $(id); el.innerHTML = text; el.className
 async function load(){
   try {
     info = await (await fetch(API + '/ledger', { cache: 'no-store' })).json(); if (!info.ok) throw new Error(info.message);
+    if (!okInfo(info)) throw new Error('damaged');
     chain = info.chain; let page = info;
-    while (page.more) { page = await (await fetch(API + '/ledger?after=' + chain[chain.length - 1].id, { cache: 'no-store' })).json(); if (!page.ok) throw new Error(page.message); chain = chain.concat(page.chain); }
-  } catch (e) { $('#rows').innerHTML = '<div class="lrow"><span></span><span>THE LEDGER COULD NOT BE REACHED. TRY AGAIN IN A MINUTE.</span></div>'; $('#sent').innerHTML = ''; $('#t-note').textContent = ''; $('#c-head').textContent = ''; return; }
+    while (page.more) { page = await (await fetch(API + '/ledger?after=' + chain[chain.length - 1].id, { cache: 'no-store' })).json(); if (!page.ok) throw new Error(page.message); if (!Array.isArray(page.chain) || !page.chain.length) throw new Error('damaged'); chain = chain.concat(page.chain); }
+    if (!chain.every(okRow)) throw new Error('damaged');
+  } catch (e) { $('#rows').innerHTML = '<div class="lrow"><span></span><span>' + (e && e.message === 'damaged' ? 'WHAT ARRIVED DOES NOT LOOK LIKE THE LEDGER, SO NONE OF IT IS SHOWN. TRY AGAIN IN A MINUTE, AND IF IT STAYS LIKE THIS, TRUST NOTHING HERE.' : 'THE LEDGER COULD NOT BE REACHED. TRY AGAIN IN A MINUTE.') + '</span></div>'; $('#sent').innerHTML = ''; $('#t-note').textContent = ''; $('#c-head').textContent = ''; chain = []; info = null; return; }
   $('#t-minted').textContent = q3(info.minted); $('#t-finders').textContent = q3(info.minted - info.founder); $('#t-founder').textContent = q3(info.founder);
   $('#t-wallets').textContent = q3(info.in_wallets); $('#t-site').textContent = q3(info.on_site);
   $('#t-note').textContent = (info.network === 'mainnet' ? '' : 'TEST NETWORK: THESE COINS ARE WORTH NOTHING. ') + (info.claims === 'soon' ? 'THE TOKEN DOES NOT EXIST YET: EVERY COIN IS STILL ON THE SITE. ' : '') + 'CREATED = MOVED TO WALLETS + STILL WAITING ON THE SITE' + (Number(info.in_flight) ? ' + ' + q3(info.in_flight) + ' ON THEIR WAY TO A WALLET RIGHT NOW.' : '.');
@@ -69,6 +80,7 @@ async function load(){
 
 // 1 · every fingerprint again, in this browser
 async function verify(){
+  if (!info) { say('#v-chain', 'THE LEDGER HAS NOT ARRIVED, SO THERE IS NOTHING TO CHECK.', 'no'); return false; }
   if (!chain.length) { say('#v-chain', 'THERE IS NOTHING TO CHECK YET.'); return true; }
   if (!(window.crypto && crypto.subtle)) { say('#v-chain', 'THIS BROWSER CANNOT HASH HERE. OPEN THE PAGE OVER HTTPS.', 'no'); return false; }
   say('#v-chain', 'CHECKING…'); marks.clear();
@@ -117,15 +129,16 @@ async function readTransfer(network, sig){
 async function outside(n){
   const claimed = new Set((info.transfers || []).map(c => c.tx)), found = [];
   const sigs = await rpc(n, 'getSignaturesForAddress', [info.mint, { limit: 1000 }]);
-  for (const s of sigs.filter(s => !s.err && !claimed.has(s.signature)).slice(0, 60)) {
+  for (const s of (Array.isArray(sigs) ? sigs : []).filter(s => s && SIG.test(String(s.signature)) && !s.err && !claimed.has(s.signature)).slice(0, 60)) {
     const x = await readTransfer(n, s.signature);
     const units = x ? x.mints.filter(m => m.mint === info.mint).reduce((t, m) => t + m.units, 0) : 0;
-    if (units > 0) found.push({ tx: s.signature, amount: units / 1e6, at: s.blockTime ? new Date(s.blockTime * 1000).toISOString() : '' });
+    if (units > 0) found.push({ tx: s.signature, amount: units / 1e6, at: Number.isFinite(s.blockTime) ? new Date(s.blockTime * 1000).toISOString() : '' });
     await new Promise(r => setTimeout(r, 350));
   }
   return found;
 }
 async function solana(){
+  if (!info) { say('#v-solana', 'THE LEDGER HAS NOT ARRIVED, SO THERE IS NOTHING TO COMPARE.', 'no'); return; }
   const t = info.transfers || [], n = info.network || 'devnet';
   if (!info.mint) { say('#v-solana', 'THE QLL TOKEN DOES NOT EXIST YET, SO NO COIN HAS LEFT THIS SITE. ITS ADDRESS WILL BE PUBLISHED HERE BEFORE THE FIRST TRANSFER.'); return; }
   say('#v-solana', 'ASKING SOLANA…');
@@ -159,7 +172,7 @@ async function solana(){
     else {
       say('#v-solana', 'THE NUMBERS DIFFER. READING THE TOKEN\'S WHOLE HISTORY TO FIND OUT WHY…');
       let strays = null; try { strays = await outside(n); } catch (e) {}
-      const list = strays && strays.length ? ' CREATED OUTSIDE THE LEDGER: ' + strays.map(x => `${q3(x.amount)} QLL ON ${when(x.at)} UTC (<a href="https://explorer.solana.com/tx/${x.tx}${cluster(n)}" target="_blank" rel="noopener">SEE IT ↗</a>)`).join(', ') + '.' : strays ? ' NO CREATION OUTSIDE THE LEDGER WAS FOUND, SO COINS WERE DESTROYED BY THEIR HOLDERS OR A TRANSFER IS ON ITS WAY.' : ' THE TOKEN\'S HISTORY COULD NOT BE READ RIGHT NOW.';
+      const list = strays && strays.length ? ' CREATED OUTSIDE THE LEDGER: ' + strays.map(x => `${q3(x.amount)} QLL ON ${when(x.at)} UTC (<a href="https://explorer.solana.com/tx/${x.tx}${cluster(n)}" target="_blank" rel="noopener">SEE IT ↗</a>)`).join(', ') + '.' : strays ? (diff > 0 ? ' MORE COINS EXIST THAN THE LEDGER SENT, AND THE TOKEN\'S NEWEST TRANSACTIONS DO NOT SHOW WHERE THEY CAME FROM. THAT MUST NOT HAPPEN.' : ' FEWER COINS EXIST THAN THE LEDGER SENT: HOLDERS DESTROYED SOME OF THEIRS, OR A TRANSFER LISTED HERE IS NOT FINAL YET.') : ' THE TOKEN\'S HISTORY COULD NOT BE READ RIGHT NOW.';
       parts.push(`<span class="${n === 'mainnet' ? 'no' : 'warnc'}">SOLANA SAYS ${q3(supply)} QLL EXIST. THE LEDGER SENT ${q3(info.in_wallets)}. DIFFERENCE: ${q3(Math.abs(diff))}.${list}${n === 'mainnet' ? '' : ' THIS IS THE TEST TOKEN: IT WAS TRIED OUT BY HAND WHILE IT WAS BEING BUILT. THE REAL TOKEN STARTS AT ZERO'}</span>`);
     }
   } else parts.push('THE NUMBER OF COINS THAT EXIST COULD NOT BE READ');
@@ -171,7 +184,7 @@ async function solana(){
 const KEY = 'qll-ledger-seen';
 function remembered(){
   let seen = null; try { seen = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
-  if (!seen || !seen.hash) return;
+  if (!seen || !Number.isSafeInteger(seen.id) || !HEX.test(String(seen.hash)) || !AT.test(String(seen.on))) return;      // what this browser kept is looked at like anything else
   const row = chain.find(r => r.id === seen.id);
   if (row && row.hash === seen.hash) say('#v-seen', `ON ${esc(when(seen.on))} UTC THIS BROWSER REMEMBERED LINE #${seen.id}. IT IS STILL HERE, UNCHANGED, AND ${chain.length - 1 - chain.indexOf(row)} ${chain.length - 1 - chain.indexOf(row) === 1 ? 'LINE HAS' : 'LINES HAVE'} BEEN ADDED SINCE. PRESS CHECK EVERY LINE TO BE SURE NOTHING BEFORE IT CHANGED EITHER.`, 'ok');
   else say('#v-seen', `ON ${esc(when(seen.on))} UTC THIS BROWSER REMEMBERED LINE #${seen.id} AS <span class="addr">${esc(short(seen.hash, 8))}</span>. THAT LINE IS ${row ? 'DIFFERENT NOW' : 'GONE'}. THE LEDGER WAS REWRITTEN.`, 'no');

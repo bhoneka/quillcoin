@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://mc-heads.net https://2b2t.place https://cdn.discordapp.com; media-src https://ovjeipprgkeygnlkraiu.supabase.co; frame-src https://www.youtube.com; connect-src https://ovjeipprgkeygnlkraiu.supabase.co; font-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>QUILLCOIN</title>
 <link rel="icon" href="favicon.ico?v=9" sizes="48x48">
@@ -21,10 +22,10 @@
 <meta property="og:image" content="https://quillcoin.gg/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="description" content="Signed books hidden in 2b2t dungeon chests. Find one. Redeem the code. Own a coin.">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin="anonymous">
-<link rel="stylesheet" href="site.css?v=19">
+<link rel="stylesheet" href="vendor/leaflet-1.9.4.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H">
+<link rel="stylesheet" href="site.css?v=20">
 </head>
-<body>
+<body class="claims-soon">
 <div class="bar">
   <a href="#top" class="brand"><img class="logo" src="favicon.svg" alt="">QUILLCOIN</a>
   <div class="r"><a href="#redeem" class="opt">REDEEM↗</a><a href="#coins" class="opt">ROUNDS</a><a href="ledger.html" class="opt">LEDGER</a><a href="#guide">GUIDE</a><a href="#map" id="nav-map">MAP</a><a href="#" id="nav-account" class="acct">SIGN IN</a></div>
@@ -55,7 +56,7 @@
     <h2>REDEEM A BOOK</h2>
     <div class="redeem">
       <div class="codewrap"><span class="prefix">QLL-</span><span class="field"><span class="mask" id="mask" aria-hidden="true">XXXXX-XXXXX-XXXXX-XXXXX</span><input id="code" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="characters" enterkeyhint="done" aria-label="code"></span></div>
-      <div class="msg" id="msg">CHECKED AS YOU TYPE. NOTHING IS SPENT UNTIL YOU PRESS REDEEM.</div>
+      <div class="msg" id="msg">CHECKED AS YOU TYPE, INSIDE YOUR BROWSER. NOTHING IS SENT OR SPENT UNTIL YOU PRESS REDEEM.</div>
       <div class="auth" id="auth">
         <button id="btn-discord">SIGN IN WITH DISCORD</button>
         <div class="done" id="discord-done" hidden><img id="discord-pfp" class="head pfp" alt="" hidden><span id="discord-name"></span><a id="logout">SIGN OUT</a></div>
@@ -73,7 +74,7 @@
           <div class="who soon-only">NOT OPEN YET. COINS CAN MOVE TO A WALLET ONCE THE QLL TOKEN EXISTS ON SOLANA; ITS ADDRESS WILL BE PUBLISHED HERE FIRST. UNTIL THEN THEY WAIT ON YOUR DISCORD ACCOUNT, AND NOTHING IS LOST BY WAITING.</div>
           <input id="wallet" class="small open-only" placeholder="YOUR SOLANA WALLET ADDRESS" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
           <div class="who" id="wallet-note" hidden>THE WALLET YOU USED LAST TIME, REMEMBERED WITH YOUR DISCORD ACCOUNT. TYPE OVER IT TO USE ANOTHER ONE.</div>
-          <button id="btn-claim" class="ghost open-only">CLAIM TO WALLET · TEST NETWORK</button>
+          <button id="btn-claim" class="ghost open-only">CLAIM TO WALLET</button>
           <div class="msg" id="claim-msg"></div>
           <div class="warn open-only">USE THE ADDRESS OF A WALLET ONLY YOU HOLD THE KEYS TO: PHANTOM, SOLFLARE, BACKPACK. NEVER AN EXCHANGE DEPOSIT ADDRESS. CLAIMING SENDS YOUR WHOLE SITE BALANCE AND CANNOT BE UNDONE.</div>
           <div class="warn soft" id="mint-line" hidden>WALLET SHOWS NOTHING? ADD THE TOKEN BY ITS ADDRESS: <code id="mint"></code> · <a id="mint-copy">COPY</a></div>
@@ -144,7 +145,7 @@
       <ul>
         <li>Hover it in your inventory. The author line must read <b>by QuillCoin</b>. Nobody else can sign a book under that name, but a lookalike name is easy to make (a capital I in place of an l), so do not stop here.</li>
         <li>Its title names its round and number, like <b>R1 Coin 37</b>, and the same round and number are on this page.</li>
-        <li>Type the code from page three into the box at the top. The site answers while you type, before you press anything: <b>real and unspent</b>, <b>already redeemed</b> (with the name of who did it, and when), or <b>no coin has this code</b>.</li>
+        <li>Type the code from page three into the box at the top. The page answers while you type, before you press anything, and without sending the code anywhere (it compares the code's fingerprint with the public list, inside your browser): <b>real and unspent</b>, <b>already redeemed</b> (with the name of who did it, and when), or <b>no coin has this code</b>.</li>
       </ul>
       <p>The code is the real test: a fake book cannot carry a code this site knows. Checking never spends a code. Only the REDEEM button does.</p>
     </div></details>
@@ -280,8 +281,8 @@
     <span>2B2T.ORG · NOT AFFILIATED</span>
   </footer>
 </main>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin="anonymous"></script>
-<script src="site.js?v=19"></script>
+<script src="vendor/supabase-js-2.117.2.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok"></script>
+<script src="vendor/leaflet-1.9.4.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"></script>
+<script src="site.js?v=20"></script>
 </body>
 </html>

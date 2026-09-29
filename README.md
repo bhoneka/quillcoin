@@ -9,12 +9,13 @@ This repository is the whole site: the pages, the database rules and the API. Th
 | Path | What it is |
 | --- | --- |
 | `index.html`, `site.css`, `site.js` | The site: redeem, the rounds and their books, the map, the guide. |
+| `vendor/` | The two libraries the site uses (supabase-js 2.117.2, Leaflet 1.9.4), taken from the npm registry and served from here, each pinned by its hash in `index.html`. The site loads no code from anywhere else. |
 | `ledger.html`, `ledger.js` | The public ledger, and the checks that run in the visitor's own browser. |
 | `supabase/migrations/` | Every table, rule and function in the database, in the order they were applied. |
-| `supabase/functions/api/index.ts` | The API. One function, all routes. |
+| `supabase/functions/api/` | The API. One function, all routes (`index.ts`). `fate.ts` decides what became of a transfer; `supabase/functions/tests/fate_test.ts` tries it against nodes that are late, wrong or silent (`deno test`). |
 | `supabase/launch/` | One file, run once by hand before round 1 opens: it removes the test round. It refuses to run once a real round is open. |
 | `token/` | `create-mainnet.mjs` creates the real QLL token: 6 decimals, a supply of 0, no freeze authority. `--rehearse` runs the same steps on the test network. The other scripts are the ones the test network was tried with. |
-| `tools/` | Map rendering, and `publish_hide.py`: it cuts the recording of a hide down to the run itself, removes the sound and everything stored inside the file, stores it, and commits its fingerprint. `open_round.py` sets the moment a round opens, and refuses while a book or a recording is missing. |
+| `tools/` | Map rendering, and `publish_hide.py`: it publishes the recording the hiding tool made of a run (the game's picture and the game's own sound, nothing else), removes everything stored inside the file, stores it, and commits its fingerprint. A recording made by hand is cut down to the run itself and loses its sound. `open_round.py` sets the moment a round opens, and refuses while a book or a recording is missing. |
 
 The site is static and is served by GitHub Pages. Sign-in, the database and the API run on Supabase.
 
@@ -26,28 +27,30 @@ Base: `https://ovjeipprgkeygnlkraiu.supabase.co/functions/v1/api`
 | --- | --- | --- |
 | `GET /board` | anyone | Every round and every book: number, fingerprint, when it was hidden, and once found: by whom, when and where. |
 | `GET /board?round=N` | anyone | One round. |
-| `GET /health` | anyone | Whether moving coins to a wallet can work right now: the network answers, the token is there with nobody able to freeze it, the site's key is the one that may create it, and how many transfers its fee money pays for. |
+| `GET /health` | anyone | Whether moving coins to a wallet can work right now: both nodes answer, the token is there with nobody able to freeze it, the site's key is the one that may create it, and how many transfers its fee money pays for. |
 | `GET /ledger` | anyone | Totals, transfers, and the first 1000 lines of the ledger. `GET /ledger?after=ID` continues while `more` is true. |
-| `POST /check {code}` | anyone | `unspent`, `spent` or `unknown`. Never spends anything. |
+| `POST /check {code}` | anyone | `unspent`, `spent` or `unknown`. Never spends anything. The site itself does not use it: it checks a code inside the visitor's browser, against the public fingerprints. |
 | `POST /redeem {code, ign}` | signed-in finder | Spends the code: 1 QLL to the finder, 0.1 QLL to the founder. |
 | `POST /claim {wallet}` | signed-in finder | Sends the finder's whole site balance to their Solana wallet. Refuses addresses that are not wallets. |
 | `POST /settle` | signed-in finder | Looks up a transfer that was left open and settles it: arrived, or back on the site. |
 | `POST /hide` | the hider tool | Commits a book's fingerprint. Refused once the round is open, and once the round holds all of its books. |
-| `POST /video` | the hider | Commits the recording of a hide: its address and its fingerprint, both public at once. A committed fingerprint can never be replaced by another. |
+| `POST /video` | the hider | Commits the recording of a hide: its address and its fingerprint, both public at once. The address has to lie in the site's own storage. A committed fingerprint can never be replaced by another. |
 
-A code is never stored. It arrives at `/check` and `/redeem`, is hashed at once, and only the hash is looked up.
+A code is never stored. The site sends it once, when REDEEM is pressed. The database is handed the code itself and works out the fingerprint: fingerprints are public, so a fingerprint alone redeems nothing, not even for the site's own key.
 
 ## Rules the database enforces
 
-- **A code is spent once.** `claim_coin` locks the book's row, so two people redeeming at the same moment cannot both win.
+- **A code is spent once, and only the code spends it.** `redeem_book` takes the code, hashes it and locks the book's row, so two people redeeming at the same moment cannot both win. A find, once written, cannot be changed or given to another name.
+- **An open round is frozen.** Its opening time, ring and size cannot change, its books cannot be removed or altered, and it cannot be deleted.
 - **Nothing joins an open round.** `/hide` refuses new books once a round has opened, and refuses real rounds from anywhere but 2b2t.org.
 - **The ring is fixed before the hunt.** Every round publishes how far from spawn its books are (`ring_min`, `ring_max`); once the round is open the database refuses to change it.
 - **So is the number of books.** Every round publishes how many books it holds (`planned`). The database refuses a book too many, and refuses to change the number once the round is open.
-- **A recording cannot be replaced once its round is open.** A recording is public from the moment it is committed (`video_url`, `video_hash`, `video_at`). The API refuses a different fingerprint for the same book at any time; until the round opens a recording can still be corrected by hand in the database, and from that moment a trigger refuses every change of the fingerprint.
+- **A recording cannot be replaced once its round is open.** A recording is public from the moment it is committed (`video_url`, `video_hash`, `video_at`). The API refuses a different fingerprint for the same book at any time; until the round opens a recording can still be corrected by hand in the database, and from that moment a trigger refuses every change of the fingerprint and of the address.
 - **The hider cannot redeem.** Accounts on the `blacklist` table are refused.
 - **The position of a chest is sealed.** The hider tool encrypts it (AES-256-GCM) under a key derived from the book's code. The site stores the sealed box and can only open it with the code, which it sees for the first time when the book is redeemed.
-- **The ledger only grows.** Updates, deletes and truncates are refused by triggers.
-- **Coins are never returned and delivered at once.** A transfer's signature and the last block it is valid for are stored before it is sent. The balance only goes back to the site when the network has finalized a later block and the transaction is not in it.
+- **The ledger only grows.** Updates, deletes and truncates are refused by triggers. Its lines are numbered and chained under one lock, and the site's own key cannot write to it: lines come from the functions that redeem a book or move coins, and from nowhere else.
+- **Coins are never returned and delivered at once.** A transfer is one transaction (the wallet's token account, the finder's coins, the founder's tenth, the ledger's newest hash), tried out before it is signed. Its signature and the last block it is valid for are stored before it is sent, once. From then on the balance only goes back when two independent nodes both say that the transaction failed for good, or that they never saw it and a final block past its last valid one exists. For its first three minutes it does not go back at all. A node that is behind, silent or contradicted leaves the question open.
+- **One transfer at a time, six an hour.** A finder with a transfer under way cannot start another.
 
 ## The ledger, and checking it yourself
 

@@ -1,4 +1,5 @@
 // QuillCoin - quillcoin.gg
+if (window.top !== window.self) { document.documentElement.innerHTML = ''; throw new Error('quillcoin.gg does not run inside another page'); }   // nobody gets to lay their own page over this one
 const SB_URL = 'https://ovjeipprgkeygnlkraiu.supabase.co';
 const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92amVpcHByZ2tleWdubGtyYWl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzMDk5NjksImV4cCI6MjEwNTg4NTk2OX0.5q95unvkFe2c1GBP91ztz44ejBX_2AnxQjYk0mxtcPQ';   // public key: it can only read what the public board already shows
 const API = SB_URL + '/functions/v1/api';
@@ -6,12 +7,13 @@ const Q = new URLSearchParams(location.search);
 const FLOW = Q.get('flow') === 'old' ? 'old' : 'new';     // ?flow=old keeps the first redeem flow around for comparing
 const $ = s => document.querySelector(s);
 const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_ANON) : null;
+// a sign-in only counts when it was started in this very browser: a link that carries somebody else's sign-in is refused
+const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_ANON, { auth: { flowType: 'pkce' } }) : null;
 const day = iso => new Date(iso).toISOString().slice(0, 10);
 const stamp = iso => new Date(iso).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
 const since = iso => { if (!iso) return '–'; const d = (Date.now() - Date.parse(iso)) / 1000; return d < 3600 ? Math.floor(d / 60) + 'M' : d < 86400 ? Math.floor(d / 3600) + 'H' : Math.floor(d / 86400) + 'D'; };
 const validIgn = v => /^[A-Za-z0-9_]{3,16}$/.test(v);
-const head = ign => validIgn(ign || '') ? `<img class="head" src="https://mc-heads.net/avatar/${encodeURIComponent(ign)}/16" alt="">` : '';
+const head = ign => validIgn(ign || '') ? `<img class="head" src="https://mc-heads.net/avatar/${encodeURIComponent(ign)}/16" alt="" referrerpolicy="no-referrer">` : '';
 const finder = c => esc((c.found_ign || c.found_name || 'ANONYMOUS').toUpperCase());
 const embedUrl = u => { const m = String(u).match(/(?:youtu\.be\/|[?&]v=|\/embed\/)([\w-]{6,})/); return m ? 'https://www.youtube.com/embed/' + m[1] : null; };
 const isFile = u => /\.(mp4|webm|mov)(\?|$)/i.test(String(u));
@@ -20,8 +22,31 @@ const player = (u, auto) => isFile(u) ? `<video controls playsinline preload="me
 const roundName = id => 'ROUND ' + id;
 const short = a => a.slice(0, 4) + '…' + a.slice(-4);
 
+// ------------------------------------------------------------------ whatever arrives from outside is cut to shape before anything is drawn with it
+const STORE = SB_URL + '/storage/v1/object/public/hides/';
+const int = v => Number.isSafeInteger(v) ? v : null;
+const date = v => typeof v === 'string' && v.length < 40 && Number.isFinite(Date.parse(v)) ? v : null;
+const hex = v => typeof v === 'string' && /^[0-9a-f]{64}$/.test(v) ? v : '';
+const plain = (v, n) => typeof v === 'string' ? v.replace(/[^A-Za-z0-9 _.\-]/g, '').trim().slice(0, n) : '';
+const addr = v => typeof v === 'string' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(v) ? v : null;
+// a recording is played from this site's own storage or from YouTube, and from nowhere else
+const recording = v => typeof v === 'string' && v.length < 300 && ((v.startsWith(STORE) && /^[A-Za-z0-9_\-]+(\/[A-Za-z0-9_\-]+)*\.mp4$/.test(v.slice(STORE.length))) || /^https:\/\/(www\.youtube\.com\/(watch\?v=|embed\/)|youtu\.be\/)[\w-]{6,20}$/.test(v)) ? v : '';
+function coinIn(c, round){
+  const n = int(c && c.number), h = hex(c && c.hash), hid = date(c && c.hidden_at); if (n === null || n < 1 || !h || !hid) return null;
+  const found = date(c.found_at);
+  return { round, number: n, hash: h, hidden_at: hid, blind: c.blind === true, server: plain(c.server, 40), found_at: found,
+    found_ign: found && validIgn(String(c.found_ign || '')) ? String(c.found_ign) : '', found_name: found ? plain(c.found_name, 32) : '',
+    found_x: found ? int(c.found_x) : null, found_y: found ? int(c.found_y) : null, found_z: found ? int(c.found_z) : null,
+    video_hash: hex(c.video_hash), video_at: date(c.video_at), video_url: recording(c.video_url) };
+}
+function roundIn(r){
+  const id = int(r && r.id); if (id === null || id < 0) return null;
+  return { id, opened_at: date(r.opened_at), closed_at: date(r.closed_at), ring_min: Number.isFinite(r.ring_min) ? r.ring_min : null, ring_max: Number.isFinite(r.ring_max) ? r.ring_max : null,
+    planned: int(r.planned), coins: (Array.isArray(r.coins) ? r.coins : []).map(c => coinIn(c, id)).filter(Boolean) };
+}
+
 // ------------------------------------------------------------------ rounds and their books
-let rounds = [], view = 'cards', openSet = new Set(), token = { mint: null, network: 'devnet', founder: null, claims: 'open' }, myBal = 0;
+let rounds = [], view = 'cards', openSet = new Set(), token = { mint: null, network: 'mainnet', founder: null, claims: 'soon' }, myBal = 0;   // transfers stay shut until the server says they are open
 try { view = localStorage.getItem('qll-view') === 'list' ? 'list' : 'cards'; } catch (e) {}
 const allCoins = () => rounds.flatMap(r => r.coins);
 const coinOf = (r, n) => allCoins().find(c => c.round === r && c.number === n);
@@ -69,11 +94,11 @@ function renderRounds(){
   }).join('') || '<div class="card empty">NOTHING HERE YET</div>';
   $('#map-count').textContent = foundOnes().length + ' ON THE MAP · ' + allCoins().filter(c => !c.found_at).length + ' STILL OUT';
 }
-let linked = false;
+let linked = false, boardAt = 0;
 async function loadBoard(){
   try {
     const j = await (await fetch(API + '/board', { cache: 'no-store' })).json(); if (!j.ok) throw new Error(j.message);
-    rounds = j.rounds.map(r => ({ ...r, coins: r.coins.map(c => ({ ...c, round: r.id })) }));
+    rounds = (Array.isArray(j.rounds) ? j.rounds : []).map(roundIn).filter(Boolean); boardAt = Date.now();
     if (!openSet.size) {
       const want = Q.get('round'), withBooks = rounds.filter(r => r.coins.length).map(r => r.id);
       openSet.add(want !== null && rounds.some(r => r.id === +want) ? +want : withBooks.length ? Math.max(...withBooks) : rounds.length ? Math.max(...rounds.map(r => r.id)) : 0);
@@ -296,11 +321,11 @@ const toClaim = () => { $('#account').hidden = true; if (document.body.classList
 // ------------------------------------------------------------------ account: Discord owns the coin, the Minecraft name goes on the card
 let session = null, ignLocked = false;
 const nameOf = u => { const m = u.user_metadata || {}; return (m.custom_claims && m.custom_claims.global_name) || m.full_name || m.preferred_username || m.name || u.email || 'YOU'; };
-const pfpOf = u => { const m = u.user_metadata || {}; return m.avatar_url || m.picture || ''; };
+const pfpOf = u => { const m = u.user_metadata || {}, p = String(m.avatar_url || m.picture || ''); return /^https:\/\/cdn\.discordapp\.com\/[\w\-./?=&%]+$/.test(p) ? p : ''; };
 function renderAccount(a){
   const chip = $('#nav-account');
   if (!a) { chip.textContent = 'SIGN IN'; $('#account').hidden = true; return; }
-  chip.innerHTML = (a.pfp ? `<img src="${esc(a.pfp)}" alt="">` : '') + `<b>${a.total.toFixed(1)}</b> QLL`;
+  chip.innerHTML = (a.pfp ? `<img src="${esc(a.pfp)}" alt="" referrerpolicy="no-referrer">` : '') + `<b>${a.total.toFixed(1)}</b> QLL`;
   $('#acc-pfp').src = a.pfp || 'favicon.svg'; $('#acc-name').textContent = a.name.toUpperCase();
   $('#acc-ign').innerHTML = a.ign ? head(a.ign) + esc(a.ign.toUpperCase()) : 'NO MINECRAFT NAME YET';
   $('#acc-total').textContent = a.total.toFixed(1);
@@ -336,7 +361,7 @@ async function showAuth(){
   try {
     const { data, error } = await sb.from('ledger').select('delta, reason, coin_round, coin_number, at').eq('user_id', session.user.id).order('at', { ascending: false });
     if (error) throw error;
-    const all = data || [], rows = all.filter(e => e.reason === 'find'), bal = Math.round(all.reduce((t, e) => t + Number(e.delta), 0) * 1000) / 1000;
+    const all = data || [], rows = all.filter(e => e.reason === 'find').map(e => ({ coin_round: int(e.coin_round), coin_number: int(e.coin_number), at: date(e.at) })).filter(e => e.coin_round !== null && e.coin_number !== null && e.at), bal = Math.round(all.reduce((t, e) => t + Number(e.delta), 0) * 1000) / 1000;
     const { data: cl } = await sb.from('claims').select('at, amount, wallet, status, tx, network').eq('user_id', session.user.id).order('at', { ascending: false });
     const sent = (cl || []).filter(c => c.status === 'sent'), inWallet = sent.reduce((t, c) => t + Number(c.amount), 0);
     const waiting = (cl || []).filter(c => c.status === 'pending'), onWay = waiting.reduce((t, c) => t + Number(c.amount), 0);
@@ -355,7 +380,15 @@ async function showAuth(){
     $('#claims').innerHTML = sent.map(c => `${Number(c.amount).toFixed(1)} QLL → <span class="addr">${esc(short(c.wallet))}</span> · ${day(c.at)} · <a href="https://explorer.solana.com/tx/${esc(c.tx)}${c.network === 'mainnet' ? '' : '?cluster=' + esc(c.network)}" target="_blank" rel="noopener">VIEW ↗</a>`).join('<br>');
   } catch (e) { mine.hidden = true; books.hidden = true; $('#claim').hidden = true; }
 }
-if (sb) { sb.auth.getSession().then(({ data }) => { session = data.session; showAuth(); }); sb.auth.onAuthStateChange((_e, s) => { session = s; showAuth(); }); }
+// the next person at the same computer never inherits the wallet address of the one before
+let lastUser = null;
+function whoNow(s){
+  const id = s && s.user ? s.user.id : '';
+  if (lastUser !== null && id !== lastUser) { $('#wallet').value = ''; $('#wallet-note').hidden = true; walletTouched = false; if (armed) disarm(); $('#claim-msg').textContent = ''; }
+  lastUser = id; session = s; showAuth();
+}
+document.querySelectorAll('#ign-head, #ign-head-done, #acc-pfp, #discord-pfp').forEach(i => { i.referrerPolicy = 'no-referrer'; });
+if (sb) { sb.auth.getSession().then(({ data }) => whoNow(data.session)); sb.auth.onAuthStateChange((_e, s) => whoNow(s)); }
 $('#logout').onclick = () => sb.auth.signOut();
 $('#btn-discord').onclick = async () => {
   $('#msg').textContent = '…';
@@ -371,9 +404,12 @@ const HEADS = ['FitMC', 'popbob', 'Hausemaster', 'jared2013', 'SalC1', 'x0XP', '
 let headTimer = null, headIdx = Math.floor(Math.random() * HEADS.length);
 const headUrl = n => 'https://mc-heads.net/avatar/' + encodeURIComponent(n) + '/40';
 function nextHead(){ const im = $('#ign-head'); im.style.opacity = '0'; setTimeout(() => { headIdx = (headIdx + 1 + Math.floor(Math.random() * 3)) % HEADS.length; im.src = headUrl(HEADS[headIdx]); im.style.opacity = ''; }, 220); }
+let headWait = null;
 function showHead(){
   const v = $('#ign').value.trim(), im = $('#ign-head');
-  if (validIgn(v)) { clearInterval(headTimer); headTimer = null; im.src = headUrl(v); im.style.opacity = ''; return; }
+  clearTimeout(headWait);
+  // the face of a typed name is fetched once the typing has paused, so half-typed names are not sent anywhere
+  if (validIgn(v)) { headWait = setTimeout(() => { if ($('#ign').value.trim() !== v) return; clearInterval(headTimer); headTimer = null; im.src = headUrl(v); im.style.opacity = ''; }, 700); return; }
   if (!headTimer) { im.src = headUrl(HEADS[headIdx]); headTimer = setInterval(nextHead, 1300); }
 }
 $('#ign').addEventListener('input', () => { $('#ign-row').classList.remove('missing'); showHead(); });
@@ -399,8 +435,22 @@ if (validIgn($('#ign').value.trim())) lockIgn(); else if ($('#ign').value.trim()
 updateRedeem();
 
 // ------------------------------------------------------------------ the code: masked as it is typed, checked as it is typed, spent only by REDEEM
+// The check happens right here, against the public list of fingerprints. The code leaves this computer once only: when REDEEM is pressed.
+async function fingerprint(text){ const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)); return Array.from(new Uint8Array(d), b => b.toString(16).padStart(2, '0')).join(''); }
+async function checkHere(code){
+  const msg = t => { if ('QLL-' + norm($('#code').value) === code) $('#msg').textContent = t; };      // typed on meanwhile: say nothing
+  if (!(window.crypto && crypto.subtle)) return msg('THIS BROWSER CANNOT CHECK A CODE BY ITSELF. PRESS REDEEM TO FIND OUT.');
+  try {
+    if (Date.now() - boardAt > 20000) await loadBoard();
+    const h = await fingerprint(code), c = allCoins().find(x => x.hash === h);
+    if (!c) return msg('NO COIN HAS THIS CODE.');
+    if (c.found_at) return msg('R' + c.round + ' COIN ' + c.number + ' WAS REDEEMED ' + day(c.found_at) + ' BY ' + (c.found_ign || c.found_name || 'SOMEONE').toUpperCase() + '.');
+    const r = rounds.find(x => x.id === c.round) || {}, now = Date.now(), open = r.opened_at && Date.parse(r.opened_at) <= now && !(r.closed_at && Date.parse(r.closed_at) <= now);
+    msg('R' + c.round + ' COIN ' + c.number + ' IS REAL AND UNSPENT. ' + (open ? 'PRESS REDEEM AND IT IS YOURS.' : r.opened_at && Date.parse(r.opened_at) > now ? 'ITS ROUND OPENS ' + stamp(r.opened_at).replace(/:\d\d UTC$/, ' UTC') + '. KEEP THE CODE TO YOURSELF UNTIL THEN.' : 'ITS ROUND IS NOT OPEN YET. KEEP THE CODE TO YOURSELF UNTIL IT IS.'));
+  } catch (e) { msg('COULD NOT CHECK RIGHT NOW. NOTHING WAS SENT.'); }
+}
 const norm = v => v.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^QLL/, '').replace(/(.{5})/g, '$1-').replace(/-$/, '');
-const IDLE = 'CHECKED AS YOU TYPE. NOTHING IS SPENT UNTIL YOU PRESS REDEEM.';
+const IDLE = 'CHECKED AS YOU TYPE, INSIDE YOUR BROWSER. NOTHING IS SENT OR SPENT UNTIL YOU PRESS REDEEM.';
 let checkTimer = null, lastChecked = '';
 $('#code').addEventListener('input', () => {
   const el = $('#code'), raw = el.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -413,7 +463,7 @@ $('#code').addEventListener('input', () => {
   const code = 'QLL-' + norm(el.value);
   if (code.length < 27) { $('#msg').textContent = code.length > 4 ? (27 - code.length) + ' CHARACTERS TO GO.' : IDLE; lastChecked = ''; return; }
   if (code === lastChecked) return;
-  checkTimer = setTimeout(() => { lastChecked = code; send('/check'); }, 350);
+  checkTimer = setTimeout(() => { lastChecked = code; checkHere(code); }, 350);
 });
 async function send(path){
   const code = 'QLL-' + norm($('#code').value);
@@ -425,6 +475,7 @@ async function send(path){
     if (missing.length) { $('#msg').textContent = 'STILL NEEDED: ' + missing.join(' · ') + '.'; return; }
   }
   if (code.length < 27) { $('#msg').textContent = 'THAT IS NOT A FULL CODE.'; $('.codewrap').classList.add('missing'); return; }
+  if (path !== '/redeem') return checkHere(code);
   const headers = { 'Content-Type': 'application/json' };
   if (path === '/redeem') {
     if (!session) { $('#msg').textContent = 'SIGN IN WITH DISCORD FIRST, THEN PRESS REDEEM.'; $('#btn-discord').classList.add('missing'); return; }
@@ -446,10 +497,10 @@ $('#btn-redeem').onclick = () => send('/redeem');
 
 // ------------------------------------------------------------------ claiming to a wallet
 const claimLabel = () => token.network === 'mainnet' ? 'CLAIM TO WALLET' : 'CLAIM TO WALLET · TEST NETWORK';
-let armed = null, armTimer = null, walletTouched = false, settleTimer = null, settleTries = 0;
+let armed = null, armedAt = 0, armTimer = null, walletTouched = false, settleTimer = null, settleTries = 0;
 // a transfer that was left open is settled by asking the server to look it up on the network, every few seconds, until it has ended one way or the other
 function watchTransfer(){
-  if (settleTimer || settleTries >= 30 || !session) return;
+  if (settleTimer || settleTries >= 45 || !session) return;
   settleTimer = setTimeout(async () => { settleTimer = null; settleTries++;
     try { await fetch(API + '/settle', { method: 'POST', headers: { Authorization: 'Bearer ' + session.access_token } }); } catch (e) {}
     showAuth(); }, 8000);
@@ -462,11 +513,13 @@ $('#btn-claim').onclick = async () => {
   if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet)) return no('THAT IS NOT A SOLANA WALLET ADDRESS.');
   if (wallet === token.mint) return no('THAT IS THE ADDRESS OF THE TOKEN, NOT OF A WALLET. PASTE THE ADDRESS YOUR WALLET APP SHOWS UNDER RECEIVE.');
   if (wallet === token.founder) return no('THAT IS THE FOUNDER WALLET. IT ONLY EVER RECEIVES THE FOUNDER\'S TENTH.');
-  if (armed !== wallet) {                                                     // first press: say exactly what is about to happen
-    armed = wallet; clearTimeout(armTimer); armTimer = setTimeout(() => { disarm(); say(''); }, 15000);
+  if (armed !== wallet) {                                                     // first press: say exactly what is about to happen, with the whole address to compare
+    armed = wallet; armedAt = Date.now(); clearTimeout(armTimer); armTimer = setTimeout(() => { disarm(); say(''); }, 40000);
     $('#btn-claim').innerHTML = 'PRESS AGAIN: SEND ' + myBal.toFixed(1) + ' QLL TO <span class="addr">' + esc(short(wallet)) + '</span>'; $('#btn-claim').classList.add('armed');
-    say('CHECK THE ADDRESS, FIRST AND LAST FOUR CHARACTERS. A TRANSFER CANNOT BE UNDONE.'); return;
+    const m = $('#claim-msg'), a = document.createElement('span'); a.className = 'addr full'; a.textContent = wallet.match(/.{1,4}/g).join(' ');
+    m.textContent = 'ALL OF IT GOES TO '; m.append(a, ' COMPARE EVERY GROUP WITH YOUR WALLET APP. A TRANSFER CANNOT BE UNDONE.'); return;
   }
+  if (Date.now() - armedAt < 1500) return;                                    // a double click is not a decision
   disarm(); say('SENDING…'); $('#btn-claim').disabled = true;
   try {
     const r = await fetch(API + '/claim', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify({ wallet }) });
@@ -476,7 +529,7 @@ $('#btn-claim').onclick = async () => {
 };
 // the token and the founder wallet are public: link them, and offer the token address to wallets that show nothing on their own
 fetch(API + '/ledger').then(r => r.json()).then(j => {
-  token = { mint: j.mint, network: j.network || 'devnet', founder: j.founder_wallet, claims: j.claims || (j.mint ? 'open' : 'soon') };
+  token = { mint: addr(j.mint), network: ['mainnet', 'devnet', 'testnet'].includes(j.network) ? j.network : 'devnet', founder: addr(j.founder_wallet), claims: j.claims === 'open' && addr(j.mint) ? 'open' : 'soon' };
   document.body.classList.toggle('claims-soon', token.claims !== 'open');
   document.body.classList.toggle('mainnet', token.network === 'mainnet');
   const q = token.network === 'mainnet' ? '' : '?cluster=' + encodeURIComponent(token.network);
@@ -488,9 +541,10 @@ fetch(API + '/ledger').then(r => r.json()).then(j => {
     $('#mint-copy').onclick = async () => { try { await navigator.clipboard.writeText(token.mint); $('#mint-copy').textContent = 'COPIED'; setTimeout(() => $('#mint-copy').textContent = 'COPY', 1500); } catch (e) {} };
   }
   if (!armed) $('#btn-claim').textContent = claimLabel();
+  if (session) showAuth();
 }).catch(() => {});
 
-if (window.QUILL_PROOF_VIDEO) { $('#proof').hidden = false; $('#proof-video').innerHTML = `<iframe src="${window.QUILL_PROOF_VIDEO}" allow="fullscreen" loading="lazy"></iframe>`; }
+{ const pv = recording(window.QUILL_PROOF_VIDEO), e = pv ? player(pv, false) : ''; if (e) { $('#proof').hidden = false; $('#proof-video').innerHTML = e; } }
 loadBoard().then(() => { const m = location.hash.match(/^#map(?:=(-?\d+),(-?\d+))?$/); if (m) { setMapMode(true); if (m[1]) setTimeout(() => goTo(+m[1], +m[2]), 60); } });
 
 function openChapter(){ const t = location.hash.startsWith('#g-') && document.getElementById(location.hash.slice(1)); if (t && t.tagName === 'DETAILS') { t.open = true; t.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }

@@ -306,6 +306,7 @@ a.rlinks { margin:0 }
 @media (max-width:700px){ .cf > div { flex:1 1 40% } }
 .cf .sub { font-style:normal; font-size:10px; letter-spacing:.12em; color:var(--dim); margin-left:6px }
 .addr { text-transform:none; letter-spacing:0 }
+.addr.full { display:block; margin:6px 0; word-spacing:.35em; overflow-wrap:anywhere; color:var(--hot) }
 .lrow .tm2 { display:none }
 @media (max-width:700px){ .lrow .tm2 { display:block; font-size:10px; letter-spacing:.06em; color:var(--dim); margin-top:3px; white-space:normal } }
 #guide { counter-reset:g } .guide summary .k::before { counter-increment:g; content:counter(g, decimal-leading-zero) }
