@@ -354,7 +354,7 @@ async function showAuth(){
   $('#btn-discord').hidden = on; $('#discord-done').hidden = !on;
   if (on) { const u = session.user, p = pfpOf(u), im = $('#discord-pfp'); $('#discord-name').textContent = nameOf(u).toUpperCase(); if (p) { im.src = p; im.hidden = false; } else im.hidden = true; }
   updateRedeem();
-  who.textContent = FLOW === 'old' ? (on ? '' : 'A COIN NEEDS AN OWNER, SO REDEEMING TAKES A DISCORD SIGN-IN.') : 'DISCORD OWNS THE COIN. YOUR MINECRAFT NAME GOES ON THE CARD.';
+  who.textContent = FLOW === 'old' ? (on ? '' : 'DISCORD IS HOW THE BOOK GETS AN OWNER.') : 'DISCORD IS HOW THE BOOK GETS AN OWNER. YOUR MINECRAFT NAME GOES ON ITS CARD.';
   if (!on) { mine.hidden = true; books.hidden = true; $('#claim').hidden = true; renderAccount(null); return; }
   const me = { name: nameOf(session.user), pfp: pfpOf(session.user), ign: ignLocked ? $('#ign').value.trim() : '', bal: 0, inWallet: 0, total: 0, books: [], wallet: '' };
   renderAccount(me);
@@ -451,7 +451,7 @@ async function checkHere(code){
   } catch (e) { msg('COULD NOT CHECK RIGHT NOW. NOTHING WAS SENT.'); }
 }
 const norm = v => v.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^QLL/, '').replace(/(.{5})/g, '$1-').replace(/-$/, '');
-const IDLE = 'CHECKED AS YOU TYPE, INSIDE YOUR BROWSER. NOTHING IS SENT OR SPENT UNTIL YOU PRESS REDEEM.';
+const IDLE = 'CHECKED IN YOUR BROWSER AS YOU TYPE. NOTHING IS SENT UNTIL YOU PRESS REDEEM.';
 let checkTimer = null, lastChecked = '';
 $('#code').addEventListener('input', () => {
   const el = $('#code'), raw = el.value.toUpperCase().replace(/[^A-Z0-9]/g, '');

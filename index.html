@@ -23,7 +23,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="description" content="Signed books hidden in 2b2t dungeon chests. Find one. Redeem the code. Own a coin.">
 <link rel="stylesheet" href="vendor/leaflet-1.9.4.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H">
-<link rel="stylesheet" href="site.css?v=23">
+<link rel="stylesheet" href="site.css?v=24">
 </head>
 <body class="notoken claims-soon">
 <div class="bar">
@@ -49,14 +49,14 @@
 </div>
 <main id="top">
   <section>
-    <h1>SIGNED BOOKS<br>HIDDEN IN 2B2T<br>DUNGEON CHESTS.<small>Find one. Redeem the code. Own a coin. No hints. No map. Nobody — not even the hider — knows where they are.</small></h1>
+    <h1>SIGNED BOOKS<br>HIDDEN IN 2B2T<br>DUNGEON CHESTS.<small>Find one, enter its code, and it is yours. No hints and no map: the books were hidden blind.<span class="notoken-only"> Free to play, no crypto.</span></small></h1>
   </section>
 
   <section id="redeem">
     <h2>REDEEM A BOOK</h2>
     <div class="redeem">
       <div class="codewrap"><span class="prefix">QLL-</span><span class="field"><span class="mask" id="mask" aria-hidden="true">XXXXX-XXXXX-XXXXX-XXXXX</span><input id="code" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="characters" enterkeyhint="done" aria-label="code"></span></div>
-      <div class="msg" id="msg">CHECKED AS YOU TYPE, INSIDE YOUR BROWSER. NOTHING IS SENT OR SPENT UNTIL YOU PRESS REDEEM.</div>
+      <div class="msg" id="msg">CHECKED IN YOUR BROWSER AS YOU TYPE. NOTHING IS SENT UNTIL YOU PRESS REDEEM.</div>
       <div class="auth" id="auth">
         <button id="btn-discord">SIGN IN WITH DISCORD</button>
         <div class="done" id="discord-done" hidden><img id="discord-pfp" class="head pfp" alt="" hidden><span id="discord-name"></span><a id="logout">SIGN OUT</a></div>
@@ -64,8 +64,8 @@
         <div class="ign-row" id="ign-row" hidden><img id="ign-head" class="head" alt=""><input id="ign" class="small" placeholder="MINECRAFT NAME · ENTER TO LOCK IT IN" maxlength="16" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done"></div>
         <div class="done" id="ign-done" hidden><img id="ign-head-done" class="head" alt=""><span id="ign-name"></span><a id="ign-edit" title="change it">✕</a></div>
         <button id="btn-redeem" class="locked">REDEEM</button>
-        <div class="who" id="who">A COIN NEEDS AN OWNER, SO REDEEMING TAKES A DISCORD SIGN-IN.</div>
-        <div class="who">THE CODE IS ON PAGE THREE OF THE BOOK. FIRST TIME HERE? <a href="#g-redeem">HOW REDEEMING WORKS ↓</a></div>
+        <div class="who" id="who">DISCORD IS HOW THE BOOK GETS AN OWNER. YOUR MINECRAFT NAME GOES ON ITS CARD.</div>
+        <div class="who">THE CODE IS ON PAGE THREE OF THE BOOK. <a href="#g-redeem">HOW IT WORKS ↓</a></div>
         <div class="who" id="mine" hidden></div>
         <div class="grid mine" id="mine-books" hidden></div>
         <div class="claim token-only" id="claim" hidden>
@@ -86,7 +86,7 @@
 
   <section id="coins">
     <h2>THE ROUNDS</h2>
-    <p class="rstat">EVERY BOOK EVER HIDDEN. GOLD IS FOUND, GREY IS STILL OUT THERE. PRESS A YELLOW BAR TO OPEN ITS ROUND, PRESS A BOOK FOR EVERYTHING KNOWN ABOUT IT.</p>
+    <p class="rstat">GOLD IS FOUND, GREY IS STILL OUT THERE. PRESS A BOOK FOR ITS DETAILS AND THE VIDEO OF ITS HIDE.</p>
     <div class="view"><button class="ghost on" id="v-cards">CARDS</button><button class="ghost" id="v-list">LIST</button></div>
     <div id="rounds"><div class="card empty">LOADING</div></div>
     <div class="map-cta"><button class="ghost" id="map-teaser">OPEN THE MAP ↗</button><span id="map-count">–</span></div>
@@ -104,86 +104,83 @@
   <section>
     <h2>THE SHORT VERSION</h2>
     <ol class="steps">
-      <li><span>Somewhere on 2b2t, in an ordinary dungeon chest, sits a written book signed by <b>QuillCoin</b>. The code is on page three.</span></li>
-      <li><span>Whoever holds the book holds the coin. Take it. Loot it off someone. It's a bearer item.</span></li>
-      <li><span>Type the code at the top of this page. First redemption wins. The book is then spent: a souvenir with a public record of who cashed it.</span></li>
-      <li><span>You get one QuillCoin. The book's card turns gold, its chest appears on the map, and the ledger remembers it for good.</span></li>
+      <li><span>A book signed by <b>QuillCoin</b> sits in a dungeon chest somewhere on 2b2t. Its code is on page three.</span></li>
+      <li><span>Whoever holds the book can use it. Find it, loot it, trade for it.</span></li>
+      <li><span>Type the code at the top of this page. First one wins.</span></li>
+      <li><span><span class="token-only">You get one QuillCoin. </span>The book's card turns gold with your name on it, and its chest appears on the map.</span></li>
     </ol>
   </section>
 
   <section id="guide">
-    <h2>THE GUIDE · EVERYTHING, EXPLAINED</h2>
+    <h2>THE GUIDE</h2>
 
-    <details class="guide" id="g-what"><summary><span class="k"></span><span>What is QuillCoin?</span><span class="pm">+</span></summary><div class="gb">
-      <p>A treasure hunt on 2b2t, the oldest anarchy server in Minecraft. Signed books are hidden in dungeon chests across the overworld. Every book carries a code that works exactly once. Whoever types that code here first owns one QuillCoin<span class="token-only">, written <b>QLL</b></span>.</p>
-      <p><b>There is nothing to buy.</b> <span class="token-only">No presale, no shop</span><span class="notoken-only">No shop</span>, no starter pack. The only way a coin comes into existence is somebody finding a book.</p>
+    <details class="guide" id="g-what"><summary><span class="k"></span><span>What is this?</span><span class="pm">+</span></summary><div class="gb">
+      <p>A treasure hunt on 2b2t. Signed books are hidden in dungeon chests, and every book has a code that works once. Type the code in here first and the book is yours<span class="token-only">, along with one QuillCoin, written <b>QLL</b></span>.</p>
+      <p class="notoken-only"><b>What you get:</b> your name on the book's card, its chest on the map, and a coin next to your name. The book stays in your inventory: there is only one of each.</p>
+      <p class="notoken-only"><b>It is free, and it is not crypto.</b> There is nothing to buy, and a coin cannot be sold or sent anywhere. It is a game. If any of that ever changes, it will be said here first.</p>
+      <p class="token-only"><b>There is nothing to buy.</b> No presale, no shop, no starter pack. The only way a coin comes into existence is somebody finding a book.</p>
       <p class="token-only">It is a game. Nobody here promises that a coin is, or ever will be, worth anything. If people decide to trade them, that is theirs to decide.</p>
-      <p class="notoken-only">It is a game, made for the fun of it. A coin is a point next to your name: it cannot be bought, sold or sent anywhere.</p>
-    </div></details>
-
-    <details class="guide" id="g-where"><summary><span class="k"></span><span>Where are the books?</span><span class="pm">+</span></summary><div class="gb">
-      <p>In ordinary <b>dungeons</b> in the overworld: the small mossy cobblestone rooms with a monster spawner in the middle and a chest or two against the wall. They sit somewhere in the ring between <b><span id="g-ring-min">15,000</span> and <span id="g-ring-max">100,000</span> blocks</b> from spawn, in any direction. Every round publishes its own ring before it opens, on its yellow bar, and the ring cannot change afterwards.</p>
-      <p>That is everything anybody knows. The person who hid them flew there with a black screen and never saw a coordinate; this site has never seen one either. There are no hints and there will never be any.</p>
-      <p>A book is an item like any other. It can be taken by whoever opens the chest first, and it can be destroyed along with the chest.</p>
-    </div></details>
-
-    <details class="guide" id="g-hide"><summary><span class="k"></span><span>How does a book get hidden?</span><span class="pm">+</span></summary><div class="gb">
-      <p>One person hides every book, by hand, with a tool that keeps them blind the whole way. Every hide goes the same:</p>
-      <ol>
-        <li><b>One key, in the nether.</b> The recording starts by itself, and for the first seconds you still see the nether the hider is standing in. Then the tool draws a random point inside the round's ring, shows it to nobody, the hider included, and stops drawing the world.</li>
-        <li><b>A blind flight.</b> The tool flies there on its own. The screen is black the whole way; all it says is roughly how many minutes are left.</li>
-        <li><b>Through a portal.</b> The hider lands, builds a portal and steps into the overworld. The land around them is not drawn. The only thing the tool draws is the first dungeon with a chest that it finds near the point.</li>
-        <li><b>The book.</b> The hider digs to that dungeon and opens its chest. One more key: the tool makes the code, writes the book, has the server sign it and puts it in the chest. The code is never on the screen, and the hider cannot open the book.</li>
-        <li><b>Pulled away by a pearl.</b> The hider does not walk or fly home. An ender pearl that was thrown long before and is kept waiting far away is set off, and the hider is pulled to it in an instant. They leave without ever having seen the way there or the way back.</li>
-        <li><b>Only then</b> does the book's fingerprint appear on this page. The recording runs a few seconds longer, so you see the hider arrive somewhere else, and is then put on the book's card.</li>
-      </ol>
-      <p>The tool outlines every block that was broken on the way in, so that it can be put back before leaving.</p>
-      <p>The first two books of round 1 were hidden before the tool did all of this by itself: the first recording begins once the world is hidden and stops a moment before the pearl, the second was cut by hand a moment after it.</p>
-      <p>What keeps all of this honest is under <a href="#g-cheat">Can the hider cheat?</a></p>
-    </div></details>
-
-    <details class="guide" id="g-real"><summary><span class="k"></span><span>Is the book in my hand real?</span><span class="pm">+</span></summary><div class="gb">
-      <ul>
-        <li>Hover it in your inventory. The author line must read <b>by QuillCoin</b>. Nobody else can sign a book under that name, but a lookalike name is easy to make (a capital I in place of an l), so do not stop here.</li>
-        <li>Its title names its round and number, like <b>R1 Coin 37</b>, and the same round and number are on this page.</li>
-        <li>Type the code from page three into the box at the top. The page answers while you type, before you press anything, and without sending the code anywhere (it compares the code's fingerprint with the public list, inside your browser): <b>real and unspent</b>, <b>already redeemed</b> (with the name of who did it, and when), or <b>no coin has this code</b>.</li>
-      </ul>
-      <p>The code is the real test: a fake book cannot carry a code this site knows. Checking never spends a code. Only the REDEEM button does.</p>
-    </div></details>
-
-    <details class="guide" id="g-redeem"><summary><span class="k"></span><span>How do I redeem it?</span><span class="pm">+</span></summary><div class="gb">
-      <ol>
-        <li><b>Type the code.</b> It is on page three of the book. The dashes place themselves; capitals or not makes no difference.</li>
-        <li><b>Sign in with Discord.</b> The coin will belong to that Discord account.</li>
-        <li><b>Enter your Minecraft name</b> and press Enter. It is the name shown on the coin's card.</li>
-        <li><b>Press REDEEM.</b> If something is still missing, it lights up red.</li>
-      </ol>
-      <p class="token-only">Then the book's card turns gold, the chest it sat in appears on the map, <b>1 QLL</b> lands on your account, and <b>0.1 QLL</b> goes to the founder. It costs you nothing, and you need no wallet for any of it.</p>
-      <p class="notoken-only">Then the book's card turns gold, the chest it sat in appears on the map, and the coin is on your account. It costs you nothing.</p>
-      <p>If somebody typed the same code before you, the site tells you who and when. First redemption wins; there is no second place.</p>
-    </div></details>
-
-    <details class="guide" id="g-account"><summary><span class="k"></span><span>Why Discord? Why my Minecraft name?</span><span class="pm">+</span></summary><div class="gb">
-      <p><b>Discord is the owner.</b> A coin has to belong to someone, and a Discord account is something nearly every player already has. Sign in again with the same account, on any device, and your coins are there.</p>
-      <p>From Discord the site receives your display name, your avatar and the email address on the account. The email is only there because sign-in needs it: it is never shown and never used for anything else. The site cannot read your messages, your servers or your friends.</p>
-      <p><b>The Minecraft name is a label.</b> It goes on the coin's card and on the map. The site does not check that the name is yours, so it proves nothing by itself. What proves a find is the code.</p>
-      <p><b>The site counts visits, not people.</b> So that the same visitor is not counted twice in a day, it keeps a scrambled fingerprint of their address, which changes every day and cannot be turned back into the address. No cookies, no trackers, nothing from another company.</p>
-    </div></details>
-
-    <details class="guide" id="g-get"><summary><span class="k"></span><span>What do I actually get?</span><span class="pm">+</span></summary><div class="gb">
-      <ul>
-        <li class="token-only"><b>1 QLL</b> on your account, the moment you redeem.</li>
-        <li class="notoken-only"><b>One coin</b> on your account, the moment you redeem.</li>
-        <li><b>Your name on that coin's card</b>, on the map and in the ledger, for good.</li>
-        <li><b>The book.</b> It is spent, but it is still yours: the only copy of that edition, with a public record of who cashed it.</li>
-      </ul>
       <p class="token-only">QLL is a token on <b>Solana</b>, a public network that keeps track of who owns what without anybody being in charge of it. You can leave your coins on this site, or move them to a wallet of your own.</p>
       <p class="soon-only token-only"><b>The token does not exist yet.</b> Until it is created, every coin is a line in this site's public ledger, under its finder's name. The token's address will be published here and in the ledger before the first coin can move.</p>
     </div></details>
 
-    <details class="guide notoken-only" id="g-crypto"><summary><span class="k"></span><span>Is this crypto?</span><span class="pm">+</span></summary><div class="gb">
-      <p><b>No.</b> There is no token in this hunt, nothing to buy, and nobody selling anything. A coin is one line in this site's <a href="ledger.html">public ledger</a> with your name on it. It cannot be bought, sold or sent anywhere.</p>
-      <p>If any of this ever changes, it will be said here first, before anything happens.</p>
+    <details class="guide" id="g-where"><summary><span class="k"></span><span>Where are the books?</span><span class="pm">+</span></summary><div class="gb">
+      <p>In ordinary <b>dungeons</b> in the overworld: the small mossy cobblestone rooms with a spawner and a chest or two. They are somewhere between <b><span id="g-ring-min">15,000</span> and <span id="g-ring-max">100,000</span> blocks</b> from spawn, in any direction.</p>
+      <p>There are no hints. The books were hidden with a tool that blacks out the screen, so the person hiding them never saw a coordinate, and this site never gets one.</p>
+      <p>A book is an item like any other. Whoever opens the chest first can take it, and it can be destroyed along with the chest.</p>
+    </div></details>
+
+    <details class="guide" id="g-redeem"><summary><span class="k"></span><span>I found a book. What now?</span><span class="pm">+</span></summary><div class="gb">
+      <ol>
+        <li><b>Check it.</b> The author line has to read <b>by QuillCoin</b>, and the title (like <b>R1 Coin 37</b>) has to match a book on this page.</li>
+        <li><b>Type the code</b> from page three into the box at the top. The page tells you at once whether it is real, already taken, or not a code. That check happens in your browser and sends nothing.</li>
+        <li><b>Sign in with Discord</b> and enter your Minecraft name.</li>
+        <li><b>Press REDEEM.</b></li>
+      </ol>
+      <p>First one to redeem wins. If somebody was faster, the page says who and when.</p>
+      <p class="token-only">Then the book's card turns gold, the chest it sat in appears on the map, <b>1 QLL</b> lands on your account, and <b>0.1 QLL</b> goes to the founder. It costs you nothing, and you need no wallet for any of it.</p>
+      <p><b>Why Discord?</b> So the book belongs to somebody. The site gets your display name and avatar, and the account's email because sign-in needs it; the email is never shown or used. Your Minecraft name is only the label on the card: the site does not check that it is yours.</p>
+      <p>The site counts visits, not people: no cookies, no trackers, nothing from another company. So that a visitor is not counted twice in a day it keeps a scrambled fingerprint of their address, which changes every day and cannot be turned back into the address.</p>
+    </div></details>
+
+    <details class="guide" id="g-hide"><summary><span class="k"></span><span>How were the books hidden?</span><span class="pm">+</span></summary><div class="gb">
+      <p>One person hid every book, with a tool that keeps them blind the whole way:</p>
+      <ol>
+        <li>The tool picks a random point inside the ring and shows it to nobody.</li>
+        <li>It flies there by itself, through the nether, with the screen black.</li>
+        <li>On the ground the land is not drawn. The only thing shown is the first dungeon with a chest near the point.</li>
+        <li>At the chest the tool writes the code into the book and puts it in. The code is never on the screen.</li>
+        <li>The hider leaves by ender pearl, pulled away in an instant, so they never see the way back either.</li>
+      </ol>
+      <p>The tool records every hide from start to finish, and the recording is on the book's card. Two of round 1's recordings are shorter than the rest, because they were made before the tool did all of it by itself: one stops a moment before the pearl, the other was cut by hand a moment after it.</p>
+      <p>What keeps this honest is under <a href="#g-cheat">Can the hider cheat?</a></p>
+    </div></details>
+
+    <details class="guide" id="g-cheat"><summary><span class="k"></span><span>Can the hider cheat?</span><span class="pm">+</span></summary><div class="gb">
+      <p>It is built so that the hider has nothing to cheat with:</p>
+      <ul>
+        <li><b>No code and no coordinate</b> is ever shown to them. The tool handles both.</li>
+        <li><b>The list was locked before the hunt.</b> Every book's fingerprint was on this page before its round opened, and nothing can be added or swapped afterwards.</li>
+        <li><b>Every hide is on video,</b> recorded by the tool itself, so there is no choosing what gets filmed. Once a round is open a recording cannot be replaced.</li>
+        <li><b>The hider's own account cannot redeem.</b></li>
+        <li><b>All of it can be read:</b> the <a href="https://github.com/bhoneka/quillcoin-hider" target="_blank" rel="noopener">tool</a> and the <a href="https://github.com/bhoneka/quillcoin" target="_blank" rel="noopener">site</a> are open source.</li>
+      </ul>
+      <p><b>The honest limits.</b> The tool runs on the hider's own computer, so it can make tampering visible but not impossible. And blocking one account does not stop anybody from using another. That is why the recordings, the tool's own log of every run and the source are all public: look at them and judge for yourself.</p>
+    </div></details>
+
+    <details class="guide" id="g-map"><summary><span class="k"></span><span>The map</span><span class="pm">+</span></summary><div class="gb">
+      <p><b>Gold books</b> are found ones, each at the chest it was in. <b>Grey books</b> are still out there: their spots on the map are made up and keep jumping, because nobody has their coordinates. The <b>gold ring</b> is the area a round's books are in.</p>
+      <p>A found book gets onto the map like this: when it is hidden, the tool locks the chest's position in a box that only the book's own code can open. Redeeming the code opens it.</p>
+      <p>The scrambled symbols on a book's card stand for what is not known yet. Coordinates are overworld ones; the nether number is the same place divided by eight.</p>
+    </div></details>
+
+    <details class="guide" id="g-trade"><summary><span class="k"></span><span>Trading, stealing and losing books</span><span class="pm">+</span></summary><div class="gb">
+      <p>Whoever types the code first gets the book, however they came by it. Found, looted, traded: the site does not ask.</p>
+      <p><b>Books can be copied</b> in Minecraft, and a copy has the same code. If you trade for a book, check its code here first and redeem it right away.</p>
+      <p><b>Never show page three</b> in a screenshot, a stream or a video.</p>
+      <p>A book destroyed with its chest is gone. Some of the grey books on this page may already be.</p>
+      <p class="token-only"><b>Your Discord account is the key</b> to coins that are still on the site. Moving them to a wallet makes them independent of it.</p>
+      <p class="notoken-only">Your books are tied to your Discord account. Sign in with the same one, on any device, and they are there.</p>
     </div></details>
 
     <details class="guide token-only" id="g-wallet"><summary><span class="k"></span><span>Moving coins to a wallet</span><span class="pm">+</span></summary><div class="gb">
@@ -224,63 +221,23 @@
       <p><b>You do not have to take that on trust.</b> The <a href="ledger.html">ledger page</a> counts the coins that exist on Solana and compares them with the finds written in the ledger. If a single coin were ever created without a find, the two numbers would stop matching, in public.</p>
     </div></details>
 
-    <details class="guide" id="g-cheat"><summary><span class="k"></span><span>Can the hider cheat?</span><span class="pm">+</span></summary><div class="gb">
-      <ul>
-        <li><b>The hider never sees a code.</b> The hiding tool writes and signs the book itself; the code exists in memory for a moment and is never shown, printed or logged. Coin books cannot be opened while the tool is on.</li>
-        <li><b>The hider never sees a coordinate.</b> The tool picks a random point and flies there with the screen painted black. On the ground the terrain is not drawn at all; the only thing shown is the dungeon the run ended at.</li>
-        <li><b>Nothing can be added later.</b> The fingerprint of every book is published on this page before its round opens. Once a round is open, the site refuses new books for it.</li>
-        <li><b>The hider's accounts can never redeem.</b> They are on a blacklist inside the database.</li>
-        <li><b>Every hide is recorded,</b> from the moment the run starts until a few seconds after the hider has been pulled away from the chest, so you see them leave. The hiding tool starts and stops the recording itself, so there is no choosing what gets filmed. The recording plays on the coin's card, next to its fingerprint: download the file, hash it, compare. Once the round is open it can never be swapped for another cut.</li>
-      </ul>
-      <p>The tool is <a href="https://github.com/bhoneka/quillcoin-hider" target="_blank" rel="noopener">open source</a>, so all of this can be read line by line.</p>
-      <p><b>The honest limit:</b> nothing that runs on somebody's own computer can be made impossible to tamper with. What the tool does is make tampering visible. Every run, every voided run and every stash is written to an audit log that is published with its round, next to the recordings and the fingerprints.</p>
+    <details class="guide" id="g-tech"><summary><span class="k"></span><span>The technical bits</span><span class="pm">+</span></summary><div class="gb">
+      <p><b>Fingerprints.</b> The site never stores a code, only its fingerprint (a SHA-256 hash): a short line of letters and digits that any text can be turned into, and that cannot be turned back. That is how the whole list of books can be public without giving a single code away.</p>
+      <p>A code is 20 characters long and never contains the letters <b>I, L, O or U</b>, so a 1 is always a one and a 0 is always a zero.</p>
+      <p><b>The ledger.</b> Every find is one line in a <a href="ledger.html">public list</a>. Lines can only be added, and each one carries the fingerprint of the line before it, so nothing can be changed quietly. The page checks all of it inside your own browser.</p>
+      <p class="token-only">Whenever coins are sent to a wallet, the newest fingerprint is written into that Solana transaction, where nobody can edit it, the founder included.</p>
+      <p><b>Rounds and numbers.</b> Books are hidden in rounds. When a round opens, its list is closed for good. Coin numbers are drawn at random between 1 and 1000, so a number says nothing about where a book is or when it was hidden.</p>
     </div></details>
 
-    <details class="guide" id="g-hash"><summary><span class="k"></span><span>What is a fingerprint (a hash)?</span><span class="pm">+</span></summary><div class="gb">
-      <p>A way of turning any text into a short line of letters and digits. The same text always gives the same fingerprint, the smallest change gives a completely different one, and nobody can work backwards from a fingerprint to the text. The kind used here is called <b>SHA-256</b>.</p>
-      <p>This site stores the fingerprint of every code and never the code itself. When you type a code, its fingerprint is worked out and looked up. That is why the full list of books can be public without giving a single code away, and why nobody, the site included, can redeem a book they have not held.</p>
-      <p><b>Why publish them before the hunt?</b> Because it fixes the list. A book that turns up later has to match a fingerprint that was already here, so nobody, the hider included, can slip in an extra book or swap a code once the hunt is on. It is the sealed envelope with the answer in it, handed over before the quiz starts.</p>
-      <p>A code is 20 characters long, which makes more possible codes than there are grains of sand on a hundred billion Earths. Guessing one is not a plan.</p>
-      <p>Codes never contain the letters <b>I, L, O or U</b>. A 1 is always a one and a 0 is always a zero.</p>
-    </div></details>
-
-    <details class="guide" id="g-map"><summary><span class="k"></span><span>The map, the ghosts and the glyphs</span><span class="pm">+</span></summary><div class="gb">
-      <p><b>The gold ring</b> on the map is where a round's books are: somewhere between the dashed circle and the solid one. That is as close as anyone can point.</p>
-      <p><b>Gold books</b> on the map are found books, each at the chest it was found in. When a book is hidden, the tool locks the chest's position in a box that only the book's own code can open. The site keeps the box and cannot look inside. Redeeming the code opens it, and the book appears on the map.</p>
-      <p><b>Grey books</b> are the ones still out there. Their number is real; their positions are made up. They jump to a new random spot every few seconds, because nobody knows where they are.</p>
-      <p><b>Glyphs</b> on a coin's card stand for what nobody knows yet: where it is, who will find it, when. They never settle until the book is redeemed.</p>
-      <p>Coordinates are overworld coordinates. The nether number next to them is the same place divided by eight.</p>
-    </div></details>
-
-    <details class="guide" id="g-ledger"><summary><span class="k"></span><span>The ledger</span><span class="pm">+</span></summary><div class="gb">
-      <p>Every coin that was ever created<span class="token-only">, and every move to a wallet,</span> is one line in a <a href="ledger.html">public ledger</a>. Lines can only be added. Each line carries the fingerprint of the line before it, so changing or removing one would break every line after it.</p>
-      <p class="notoken-only">The ledger page checks the whole chain inside your own browser, and lets your browser remember the newest line, so that you can tell if anything before it is ever changed.</p>
-      <p class="token-only">Whenever coins are sent to a wallet, the newest fingerprint is written into that Solana transaction, where nobody can edit it, the founder included. The ledger page checks the whole chain inside your own browser, and reads those transactions straight from Solana.</p>
-    </div></details>
-
-    <details class="guide" id="g-trade"><summary><span class="k"></span><span>Trading, stealing and losing books</span><span class="pm">+</span></summary><div class="gb">
-      <p><b>The code is the coin.</b> Whoever types it first gets it, however they came by the book. Found, looted, stolen, traded: the site does not ask.</p>
-      <p><b>Books can be copied.</b> Minecraft lets anyone copy a written book, and a copy carries the same code. If you trade for a book that has not been redeemed, the other side may have kept the code. Check it on this page first, and redeem the moment it is in your hands.</p>
-      <p><b>Never show page three.</b> Not in a screenshot, not on a stream, not in a video. Anyone who can read the code can redeem it.</p>
-      <p><b>Burned coins stay burned.</b> A book destroyed with its chest never becomes a coin. Some of the grey books on this page may already be gone. That is the hunt.</p>
-      <p class="token-only"><b>Your Discord account is the key</b> to coins that are still on the site. Moving them to a wallet makes them independent of it.</p>
-      <p class="notoken-only"><b>Your Discord account is the key</b> to your coins. Sign in with the same account, on any device, and they are there.</p>
-    </div></details>
-
-    <details class="guide" id="g-rounds"><summary><span class="k"></span><span>Rounds and coin numbers</span><span class="pm">+</span></summary><div class="gb">
-      <p>Books are hidden in <b>rounds</b>. While a round is being hidden, its fingerprints pile up on this page. Then the round opens, its list is closed for good, and its books can be redeemed.</p>
-      <p><b>Coin numbers are drawn at random</b> between 1 and 1000, so a number says nothing about where a book is or when it was hidden. Coin 37 is not older, closer or easier than coin 912.</p>
-      <p>Every round has its own yellow bar above. Press it and its books drop out.</p>
-    </div></details>
   </section>
 
   <section class="rules">
     <h2>RULES</h2>
-    <p><b>No hints.</b> The tool that hides the books never shows the hider the code or the coordinates: it picks a random point, flies there blind, and the first dungeon it sees is the one. The hider's own accounts can never redeem.</p>
-    <p><b>The list is locked before the hunt.</b> The moment a book is hidden, its fingerprint is published here with the time. When a round opens, its list closes for good: nobody can add a book afterwards, or swap one.</p>
+    <p><b>No hints.</b> The books were hidden blind: the tool never shows the hider a code or a coordinate.</p>
+    <p><b>The list is locked.</b> Every book's fingerprint was published before its round opened. Nothing can be added or swapped afterwards.</p>
     <p class="token-only"><b>Coins only exist when found.</b> Each redemption creates 1 for the finder and 0.1 for a public founder wallet. That fee is the founder's only income, visible from the first coin. No presale. Nothing is sold by the founder. No price is promised: this is a game reward; if people trade it, that's theirs.</p>
-    <p class="notoken-only"><b>Coins only exist when found.</b> One book, one coin, for whoever redeems it first. Nothing is sold, by anybody. No crypto. It is a game.</p>
-    <p><b>Burned coins stay burned.</b> A book destroyed in a chest never becomes a coin. Greyed entries might be gone. That's the hunt.</p>
+    <p class="notoken-only"><b>First come, first served.</b> One book, one coin, for whoever redeems it first. Nothing is sold. No crypto.</p>
+    <p><b>Lost books stay lost.</b> A book destroyed with its chest is gone.</p>
   </section>
 
   <footer>
@@ -295,6 +252,6 @@
 </main>
 <script src="vendor/supabase-js-2.117.2.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok"></script>
 <script src="vendor/leaflet-1.9.4.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"></script>
-<script src="site.js?v=23"></script>
+<script src="site.js?v=24"></script>
 </body>
 </html>
