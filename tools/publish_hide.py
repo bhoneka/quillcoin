@@ -10,8 +10,9 @@ Publishes the recordings of hides.
   --yes    do not ask before sending
 
 For each hide it finds, it
-  1. cuts the clip to the run itself: from the black screen of the flight to the book lying in the chest.
-     The takeoff before it and wherever the hider went afterwards are never part of a clip;
+  1. cuts the clip to the run itself: it begins when the run begins (the run key) and ends when the hider leaves
+     (the pearl home), a moment inside both, so that neither the place the run started from nor the place the hider
+     went to is ever part of a clip. The recording may be as long as you like and hold several hides;
   2. removes the sound and everything stored inside the file (device, dates, names), and makes it small enough to keep;
   3. shows stills of the clip and asks;
   4. works out the clip's fingerprint (SHA-256), stores the clip under an address nobody can guess,
@@ -28,9 +29,9 @@ LOG = os.path.join(HOME, 'Library/Application Support/PrismLauncher/instances/Qu
 FOLDERS = [os.path.join(HOME, d) for d in ('Movies', 'Documents/OBS', 'Documents', 'Desktop')]
 MAX_BYTES = 46 * 1024 * 1024            # the storage takes 50 MB a file
 VIDEO = ('.mp4', '.mov', '.mkv', '.m4v', '.webm')
-AFTER_BLACK = 2.0                       # seconds of black flight skipped at the start
-BEFORE_AWAY = 5.0                       # the clip ends at least this long before the hider is away from the chest
-AFTER_STASH = 12.0                      # ...and at most this long after the book went in
+AFTER_START = 1.0                       # the clip begins this long after the run began: by then the world around the hider is no longer drawn
+BEFORE_AWAY = 3.0                       # ...and ends this long before the hider is away from the chest: the next thing on screen is wherever they went
+LOOSE = 4.0                             # how far the clocks of the recording and of the log may disagree before the tool refuses
 
 
 def env():
@@ -49,7 +50,9 @@ def runs(log_path):
         if not m: continue
         t, what = int(m.group(1)), m.group(2)
         if what.startswith('run started'): cur = {'start': t}
-        elif what.startswith('takeoff: airborne') and 'start' in cur and 'stash' not in cur: cur['air'] = t       # the last takeoff counts
+        elif what.startswith('takeoff: gliding') and 'start' in cur and 'air' not in cur: cur['glide'] = t          # the screen goes black the moment the hider glides
+        elif what.startswith('takeoff: airborne') and 'start' in cur and 'stash' not in cur: cur['air'] = t
+        elif what.startswith('the flight stopped right after takeoff') and 'stash' not in cur: cur.pop('air', None)   # a takeoff that failed: the next one counts
         elif what.startswith('stashed '):
             s = re.match(r'stashed R(\d+) Coin (\d+)(.*)', what)
             if s: cur.update(round=int(s.group(1)), number=int(s.group(2)), stash=t, blind='WITHOUT' not in s.group(3))
@@ -97,21 +100,22 @@ def black(path, a, b):
 
 def window(path, r, start, dur):
     """Which part of the recording is this hide's clip. Returns (from, to) or a reason why there is none."""
-    stash = r['stash'] - start
-    if not (0 < stash < dur): return None, 'the recording does not hold the moment the book went in'
-    away = (r['away'] - start) if 'away' in r else dur
-    end = min(stash + AFTER_STASH, away - BEFORE_AWAY, dur - 0.5)
-    if end < stash + 1: return None, f'the hider was away {away - stash:.0f} s after the book went in: too soon to show the book and still stop well before wherever they went'
-    if not r.get('blind') or 'air' not in r:
-        return (max(0.0, stash - 45), end), None                                  # hidden by hand: the last 45 seconds before the book went in
-    air = r['air'] - start
-    if air < -5: return None, 'the recording began after the flight had started'
-    # the clip begins inside the black of the flight, never before it: what is on screen before that is the place the run started from
-    dark = [(s, e) for s, e in black(path, max(0.0, air - 5), min(stash, air + 90)) if e - s >= 5]
+    at = lambda t: t - start                                                      # a moment of the log, as seconds into the recording
+    if not (0 < at(r['stash']) < dur): return None, 'the recording does not hold the moment the book went in'
+    if not r.get('blind') or 'start' not in r or 'glide' not in r:
+        end = min(at(r['away']) - BEFORE_AWAY - 2, dur - 0.5) if 'away' in r else min(at(r['stash']) + 12, dur - 0.5)
+        if end < at(r['stash']) + 1: return None, 'the hider left too soon after the book went in to show it and still stop well before wherever they went'
+        return (max(0.0, at(r['stash']) - 45), end), None                           # hidden by hand: the last 45 seconds before the book went in
+    if at(r['start']) < 1: return None, 'the recording began after the run had started - a clip has to show the whole run'
+    # the two clocks are lined up on something both of them saw: the moment the screen went black
+    dark = [(a, b) for a, b in black(path, max(0.0, at(r['glide']) - LOOSE - 2), min(dur, at(r['glide']) + 90)) if b - a >= 5]
     if not dark: return None, 'no black screen was found where the flight should be - the recording and the log do not line up'
-    s, e = dark[0]
-    begin = max(s + AFTER_BLACK, air + 1)
-    if begin > e: return None, 'the black screen of the flight is shorter than expected - the recording and the log do not line up'
+    off = dark[0][0] - at(r['glide'])
+    if abs(off) > LOOSE: return None, f'the black screen of the flight is {abs(off):.0f} s away from where the log says - the recording and the log do not line up'
+    begin = at(r['start']) + off + AFTER_START
+    end = min(at(r['away']) + off - BEFORE_AWAY, dur - 0.5) if 'away' in r else min(at(r['stash']) + off + 12, dur - 0.5)
+    if begin < 0.5: return None, 'the recording began after the run had started - a clip has to show the whole run'
+    if end < at(r['stash']) + off + 1: return None, 'the hider left too soon after the book went in to show it and still stop well before wherever they went'
     return (begin, end), None
 
 

@@ -7,7 +7,7 @@ Sets the moment a round opens. From that moment its books can be redeemed, and i
   tools/open_round.py 1 --now                  opens at once
   tools/open_round.py 1 --not-yet              takes a planned opening back, as long as it has not happened
 
-It refuses while books are missing or a book has no recording committed. A round that is open cannot be closed again with this.
+It refuses while books are missing or a book has no recording committed (--allow-missing-recordings opens it anyway; those books show that they have none). A round that is open cannot be closed again with this.
 """
 import argparse, json, os, re, sys, time, urllib.error, urllib.request
 
@@ -31,7 +31,7 @@ def call(url, headers, data=None, method='GET'):
 
 def main():
     ap = argparse.ArgumentParser(description='Set the moment a round opens.')
-    ap.add_argument('round', type=int); ap.add_argument('--at'); ap.add_argument('--now', action='store_true'); ap.add_argument('--not-yet', action='store_true'); ap.add_argument('--yes', action='store_true')
+    ap.add_argument('round', type=int); ap.add_argument('--at'); ap.add_argument('--now', action='store_true'); ap.add_argument('--not-yet', action='store_true'); ap.add_argument('--yes', action='store_true'); ap.add_argument('--allow-missing-recordings', action='store_true')
     a = ap.parse_args()
     e = env(); api = e['SUPABASE_URL'] + '/functions/v1/api'
     s, body = call(f'{api}/board?round={a.round}', {})
@@ -48,7 +48,7 @@ def main():
     if a.not_yet: when = None
     else:
         if r['planned'] and len(coins) < r['planned']: raise SystemExit(f"Only {len(coins)} of {r['planned']} books are hidden. A round opens when all of its books are out there.")
-        if no_video: raise SystemExit('Every book needs its recording committed before the round opens (tools/publish_hide.py).')
+        if no_video and not a.allow_missing_recordings: raise SystemExit('Every book needs its recording committed before the round opens (tools/publish_hide.py). If one was lost, say so with --allow-missing-recordings: that book will show that it has none.')
         t = time.time() if a.now else time.mktime(time.strptime(a.at, '%Y-%m-%d %H:%M'))
         if t < time.time() - 60: raise SystemExit('That moment has passed.')
         when = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(t))
