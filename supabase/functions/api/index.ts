@@ -93,7 +93,7 @@ async function board(round: number) {
   const { data: coins, error } = await admin.from("coins")
     .select("number, hash, hidden_at, blind, server, found_at, found_ign, found_name, found_x, found_y, found_z, video_hash, video_at, video_url").eq("round", round).order("number");
   if (error) throw error;
-  const list = coins ?? [];                                                   // a recording's fingerprint is public at once; its address is only written onto the coin when the book is found
+  const list = coins ?? [];                                                   // recordings are public from the moment they are committed: what a recording gives away is accepted for the sake of the proof
   return json(200, { ok: true, round: r, coins: list, hidden: list.length, found: list.filter((c) => c.found_at).length });
 }
 
@@ -177,8 +177,7 @@ async function hide(req: Request) {
 
 /**
  * Hider only: commits the recording of a hide. Body: {round, number, sha256, url}.
- * The fingerprint is public at once and can never be replaced by another. The address is kept back until the book is found,
- * because a recording of a dungeon can give its place away: the pattern of its floor is decided by the world's seed.
+ * The recording and its fingerprint are public from that moment, and the fingerprint can never be replaced by another.
  */
 async function video(req: Request) {
   const auth = req.headers.get("authorization") ?? "";
@@ -187,7 +186,7 @@ async function video(req: Request) {
   const round = Number(b?.round), number = Number(b?.number), sha = String(b?.sha256 ?? "").toLowerCase();
   const url = typeof b?.url === "string" && /^https:\/\/[^\s"'<>]{4,290}$/.test(b.url) ? b.url : null;
   if (!Number.isInteger(round) || !Number.isInteger(number) || !/^[0-9a-f]{64}$/.test(sha)) return json(400, { ok: false, message: "bad fields" });
-  const { data: c } = await admin.from("coins").select("video_hash, found_at").eq("round", round).eq("number", number).maybeSingle();
+  const { data: c } = await admin.from("coins").select("video_hash").eq("round", round).eq("number", number).maybeSingle();
   if (!c) return json(404, { ok: false, message: "no such coin" });
   if (c.video_hash && c.video_hash !== sha) return json(409, { ok: false, message: "a different recording is already committed for this coin" });
   if (url) {
@@ -196,10 +195,10 @@ async function video(req: Request) {
   }
   const change: Record<string, unknown> = { video_hash: sha };
   if (!c.video_hash) change.video_at = new Date().toISOString();
-  if (c.found_at && url) change.video_url = url;                               // found already: nothing is left to give away
+  if (url) change.video_url = url;
   const { error } = await admin.from("coins").update(change).eq("round", round).eq("number", number);
   if (error) throw error;
-  return json(200, { ok: true, message: `recording committed for R${round} coin ${number}` + (c.found_at ? "" : " - it opens when the book is found") });
+  return json(200, { ok: true, message: `recording committed for R${round} coin ${number}` });
 }
 
 async function check(req: Request) {

@@ -39,8 +39,8 @@ function roundStatus(r){
   if (full) return 'NOT OPEN YET · ALL ' + r.planned + ' BOOKS ARE HIDDEN · REDEEMING STARTS WHEN THE ROUND OPENS';
   return 'NOT OPEN YET · ' + (r.planned ? r.coins.length + ' OF ' + r.planned + ' BOOKS HIDDEN SO FAR' : 'ITS BOOKS ARE STILL BEING HIDDEN');
 }
-// a recording opens when its book is found: until then only its fingerprint is public (a dungeon's floor can give its place away)
-const vidLink = c => c.video_url ? `<a href="${esc(c.video_url)}" data-hide="${c.round}-${c.number}" title="recording sha256 ${c.video_hash || ''}">WATCH THE HIDE ↗</a>` : c.video_hash ? `<span title="recording sha256 ${c.video_hash}">ON CAMERA · OPENS WHEN FOUND</span>` : '';
+// a recording is public from the moment it is committed; a coin with a fingerprint and no address yet is still being published
+const vidLink = c => c.video_url ? `<a href="${esc(c.video_url)}" data-hide="${c.round}-${c.number}" title="recording sha256 ${c.video_hash || ''}">WATCH THE HIDE ↗</a>` : c.video_hash ? `<span title="recording sha256 ${c.video_hash}">ON CAMERA</span>` : '';
 function cardHTML(c, i){
   const f = !!c.found_at, v = vidLink(c);
   const st = f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT · SINCE ' + day(c.hidden_at);
@@ -264,7 +264,7 @@ function openCoin(r, n, opts = {}){
     <div id="coin-map" class="${at ? '' : 'grey'}"></div>
     ${e ? `<div class="cfull"><span>THE HIDE, ON CAMERA${c.video_hash ? ' · RECORDING SHA256 ' + c.video_hash.slice(0, 16) + '…' : ''}</span><div class="video">${e}</div>${isFile(c.video_url) ? `<p class="note" style="margin-top:8px"><a href="${esc(c.video_url)}" target="_blank" rel="noopener" style="text-decoration:underline">THE FILE ITSELF ↗</a> · DOWNLOAD IT, HASH IT, AND COMPARE WITH THE RECORDING'S FINGERPRINT${c.video_at ? ', COMMITTED ' + day(c.video_at) : ''}:</p><b class="hash">${c.video_hash || ''}</b>` : ''}</div>`
         : c.video_url ? `<div class="cfull"><span>THE HIDE, ON CAMERA</span><a href="${esc(c.video_url)}" target="_blank" rel="noopener" style="text-decoration:underline">WATCH THE HIDE ↗</a></div>`
-        : c.video_hash ? `<div class="cfull"><span>THE HIDE, ON CAMERA · FINGERPRINT OF THE RECORDING${c.video_at ? ' · COMMITTED ' + day(c.video_at) : ''}</span><b class="hash">${c.video_hash}</b><p class="note" style="margin-top:8px">${f ? 'THE RECORDING IS BEING PUBLISHED.' : 'THE RECORDING OPENS THE MOMENT THIS BOOK IS FOUND. UNTIL THEN IT STAYS SHUT, BECAUSE THE FLOOR OF A DUNGEON IS ENOUGH TO WORK OUT WHERE IT IS. ITS FINGERPRINT IS ALREADY HERE, SO THE FILE CAN NEVER BE SWAPPED FOR ANOTHER.'}</p></div>`
+        : c.video_hash ? `<div class="cfull"><span>THE HIDE, ON CAMERA · FINGERPRINT OF THE RECORDING${c.video_at ? ' · COMMITTED ' + day(c.video_at) : ''}</span><b class="hash">${c.video_hash}</b><p class="note" style="margin-top:8px">THE RECORDING IS BEING PUBLISHED. ITS FINGERPRINT IS ALREADY HERE, SO THE FILE CAN NEVER BE SWAPPED FOR ANOTHER.</p></div>`
         : `<div class="cfull"><span>THE HIDE, ON CAMERA</span><b style="font-weight:400;color:var(--dim)">${f ? 'NO RECORDING WAS PUBLISHED FOR THIS COIN' : 'NO RECORDING HAS BEEN COMMITTED FOR THIS COIN YET'}</b></div>`}
     <div class="row">${reveal && token.claims !== 'soon' ? '<button id="coin-claim">CLAIM TO WALLET</button>' : ''}<button class="ghost" id="coin-open-map">${at ? 'OPEN IN THE MAP ↗' : 'OPEN THE MAP ↗'}</button></div>`;
   $('#coin').hidden = false; $('#coin').scrollTop = 0;

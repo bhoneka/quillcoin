@@ -22,7 +22,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="description" content="Signed books hidden in 2b2t dungeon chests. Find one. Redeem the code. Own a coin.">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin="anonymous">
-<link rel="stylesheet" href="site.css?v=14">
+<link rel="stylesheet" href="site.css?v=15">
 </head>
 <body>
 <div class="bar">
@@ -96,7 +96,7 @@
     <div class="proof">
       <div class="video" id="proof-video"></div>
       <p class="rstat" id="proof-meta"></p>
-      <p>Every hide is recorded: black screen on the flight, the x-ray dungeon, the book going into the chest. The recording's fingerprint is on the coin's card before its round opens, so the file can never be swapped for another cut. The recording itself opens when the book is found.</p>
+      <p>Every hide is recorded by the hiding tool itself, with the game's own sound: black screen on the flight, the x-ray dungeon, the book going into the chest. The recording and its fingerprint are on the coin's card, so the file can never be swapped for another cut.</p>
     </div>
   </section>
 
@@ -194,10 +194,10 @@
         <li><b>The hider never sees a coordinate.</b> The tool picks a random point and flies there with the screen painted black. On the ground the terrain is not drawn at all; the only thing shown is the dungeon the run ended at.</li>
         <li><b>Nothing can be added later.</b> The fingerprint of every book is published on this page before its round opens. Once a round is open, the site refuses new books for it.</li>
         <li><b>The hider's accounts can never redeem.</b> They are on a blacklist inside the database.</li>
-        <li><b>Every hide is recorded,</b> from the moment the run starts until the hider leaves the chest behind. The recording's fingerprint is on the coin's card before its round opens. The recording itself opens the moment the book is found, and not earlier, because the floor of a dungeon is enough to work out where it is. From then on it plays on the coin's card, and anyone can download the file, hash it and compare: it can never be swapped for another cut.</li>
+        <li><b>Every hide is recorded,</b> from the moment the run starts until the hider leaves the chest behind. The hiding tool starts and stops the recording itself, so there is no choosing what gets filmed. The recording plays on the coin's card, next to its fingerprint: download the file, hash it, compare. It can never be swapped for another cut.</li>
       </ul>
       <p>The tool is <a href="https://github.com/bhoneka/quillcoin-hider" target="_blank" rel="noopener">open source</a>, so all of this can be read line by line.</p>
-      <p><b>The honest limit:</b> nothing that runs on somebody's own computer can be made impossible to tamper with. What the tool does is make tampering visible. Every run, every voided run and every stash is written to an audit log. It is published when its round is over, next to the recordings and the fingerprints, and not earlier: how long a flight took says something about how far away a book is.</p>
+      <p><b>The honest limit:</b> nothing that runs on somebody's own computer can be made impossible to tamper with. What the tool does is make tampering visible. Every run, every voided run and every stash is written to an audit log that is published with its round, next to the recordings and the fingerprints.</p>
     </div></details>
 
     <details class="guide" id="g-hash"><summary><span class="k"></span><span>What is a fingerprint (a hash)?</span><span class="pm">+</span></summary><div class="gb">
@@ -256,6 +256,6 @@
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin="anonymous"></script>
-<script src="site.js?v=14"></script>
+<script src="site.js?v=15"></script>
 </body>
 </html>

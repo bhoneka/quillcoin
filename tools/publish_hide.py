@@ -2,30 +2,36 @@
 """
 Publishes the recordings of hides.
 
-  tools/publish_hide.py                       every hide found in the newest recordings of the usual folders
-  tools/publish_hide.py <file or folder> ...  every hide found in these recordings
+  tools/publish_hide.py                         every recording the hiding tool has made that is not on the site yet
+  tools/publish_hide.py --recording <file.mp4> --notes <file.json>
+                                                one of them (this is how the hiding tool itself calls it, right after a hide)
+  tools/publish_hide.py <file or folder> ...    recordings made by hand (QuickTime, OBS): finds the hides in them, cuts them, asks, publishes
   tools/publish_hide.py <file> --round 1 --number 37 --whole     one named coin, the recording as it is
 
   --dry    stop before anything leaves this computer: the clips and their stills are written, nothing is sent
-  --yes    do not ask before sending
+  --yes    do not ask before sending (recordings made by hand)
+  --sound  keep the sound of a recording made by hand (it is removed otherwise: it may hold a microphone)
 
-For each hide it finds, it
-  1. cuts the clip to the run itself: it begins when the run begins (the run key) and ends when the hider leaves
-     (the pearl home), a moment inside both, so that neither the place the run started from nor the place the hider
-     went to is ever part of a clip. The recording may be as long as you like and hold several hides;
-  2. removes the sound and everything stored inside the file (device, dates, names), and makes it small enough to keep;
-  3. shows stills of the clip and asks;
-  4. works out the clip's fingerprint (SHA-256), stores the clip under an address nobody can guess,
-     and commits both to the coin. The fingerprint is public at once. The address is published by the site
-     the moment the book is found, and not earlier: the floor of a dungeon is enough to work out where it is.
+THE HIDING TOOL'S OWN RECORDINGS hold the game's window and the game's own sound, from the moment a run starts until the
+hider is away from the chest. The world is hidden before such a recording begins and until it has ended, so there is
+nothing to cut: the last second is dropped, everything stored inside the file (device, dates, names) is removed, and it
+is made small enough to keep.
 
-Which part of a recording belongs to which coin comes from the hiding tool's own log, which holds times and events and never a position.
+RECORDINGS MADE BY HAND may be as long as you like and hold several hides. For each hide the tool cuts the clip to the
+run itself: it begins when the run begins and ends when the hider leaves, a moment inside both, so that neither the
+place the run started from nor the place the hider went to is ever part of a clip. Which part of a recording belongs to
+which coin comes from the hiding tool's own log, which holds times and events and never a position.
+
+Either way the clip's fingerprint (SHA-256) is worked out, the clip is stored, and both are committed to the coin.
+From that moment the recording plays on the coin's card, and its fingerprint can never be replaced by another.
 """
 import argparse, hashlib, json, os, re, secrets, subprocess, sys, tempfile, time, urllib.error, urllib.request
 
 HOME = os.path.expanduser('~')
 ENV = os.path.join(HOME, '.config/quillcoin/env')
-LOG = os.path.join(HOME, 'Library/Application Support/PrismLauncher/instances/QuillCoin Hider/.minecraft/meteor-client/quillcoin-audit.txt')
+HIDER = os.path.join(HOME, 'Library/Application Support/PrismLauncher/instances/QuillCoin Hider/.minecraft/meteor-client')
+LOG = os.path.join(HIDER, 'quillcoin-audit.txt')
+RECORDINGS = os.path.join(HIDER, 'quillcoin-recordings')
 FOLDERS = [os.path.join(HOME, d) for d in ('Movies', 'Documents/OBS', 'Documents', 'Desktop')]
 MAX_BYTES = 46 * 1024 * 1024            # the storage takes 50 MB a file
 VIDEO = ('.mp4', '.mov', '.mkv', '.m4v', '.webm')
@@ -119,13 +125,16 @@ def window(path, r, start, dur):
     return (begin, end), None
 
 
-def cut(path, a, b, out):
+def cut(path, a, b, out, sound=False):
     d = b - a
-    kbps = max(250, min(2000, int(MAX_BYTES * 8 / 1000 / d * 0.92)))
+    voice = 96 if sound else 0
+    kbps = max(250, min(2500, int(MAX_BYTES * 8 / 1000 / d * 0.92) - voice))
+    has_sound = sound and 'audio' in subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', path], capture_output=True, text=True).stdout
     for _ in range(4):
-        subprocess.run(['ffmpeg', '-y', '-v', 'error', '-ss', f'{a:.2f}', '-t', f'{d:.2f}', '-i', path, '-an', '-sn', '-dn', '-map_metadata', '-1', '-map_chapters', '-1',
-                        '-vf', 'scale=-2:720:flags=lanczos,fps=30', '-c:v', 'libx264', '-preset', 'medium', '-b:v', f'{kbps}k', '-maxrate', f'{int(kbps * 1.4)}k', '-bufsize', f'{kbps * 2}k',
-                        '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-fflags', '+bitexact', '-flags:v', '+bitexact', out], check=True)
+        subprocess.run(['ffmpeg', '-y', '-v', 'error', '-ss', f'{a:.2f}', '-t', f'{d:.2f}', '-i', path, '-sn', '-dn', '-map_metadata', '-1', '-map_chapters', '-1', '-map', '0:v:0']
+                       + (['-map', '0:a:0', '-c:a', 'aac', '-b:a', f'{voice}k', '-ac', '2', '-ar', '48000'] if has_sound else ['-an'])
+                       + ['-vf', 'scale=-2:720:flags=lanczos,fps=30', '-c:v', 'libx264', '-preset', 'medium', '-b:v', f'{kbps}k', '-maxrate', f'{int(kbps * 1.4)}k', '-bufsize', f'{kbps * 2}k',
+                          '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-fflags', '+bitexact', '-flags:v', '+bitexact', '-flags:a', '+bitexact', out], check=True)
         if os.path.getsize(out) <= MAX_BYTES: return kbps
         kbps = int(kbps * 0.8)
     raise SystemExit('could not make the clip small enough')
@@ -147,23 +156,92 @@ def call(url, data, headers, method='POST'):
     except urllib.error.HTTPError as e: return e.code, e.read().decode('utf8', 'replace')
 
 
+def send(e, api, clip, rnd, number):
+    """Stores the clip and commits it to its coin. Returns (done, what was said, fingerprint)."""
+    sha = hashlib.sha256(open(clip, 'rb').read()).hexdigest()
+    name = f"r{rnd}/coin-{number}-{secrets.token_hex(8)}.mp4"
+    s, body = call(f"{e['SUPABASE_URL']}/storage/v1/object/hides/{name}", open(clip, 'rb').read(), {'authorization': 'Bearer ' + e['SUPABASE_SERVICE_KEY'], 'apikey': e['SUPABASE_SERVICE_KEY'], 'content-type': 'video/mp4', 'cache-control': 'max-age=31536000', 'x-upsert': 'false'})
+    if s >= 300: return False, f'the storage refused it ({s}): {body[:120]}', sha
+    url = f"{e['SUPABASE_URL']}/storage/v1/object/public/hides/{name}"
+    s, body = call(api + '/video', json.dumps(dict(round=rnd, number=number, sha256=sha, url=url)).encode(), {'authorization': 'Bearer ' + e['HIDER_KEY'], 'content-type': 'application/json', 'user-agent': 'quillcoin-tools'})
+    try: said = json.loads(body).get('message', body)
+    except ValueError: said = body[:140]
+    return s < 300, said if s < 300 else f'not committed ({s}): {said}', sha
+
+
+def on_site(api, rnd, number):
+    """The coin as the site shows it, None when it is not there, False when the site cannot be read."""
+    s, body = call(f'{api}/board?round={rnd}', None, {'user-agent': 'quillcoin-tools'}, 'GET')
+    if s == 404: return None
+    if s != 200: return False
+    return next((c for c in json.loads(body)['coins'] if c['number'] == number), None)
+
+
+def own(recording, notes_path, e, api, dry=False, wait=600):
+    """One recording made by the hiding tool. Returns (done, one line about it)."""
+    notes = json.load(open(notes_path))
+    rnd, number = notes.get('round'), notes.get('number')
+    if not notes.get('hidden') or number is None: return False, 'no book was hidden during this recording'
+    tag = f'R{rnd} coin {number}'
+    marker = recording[:-4] + '.published'
+    if os.path.exists(marker): return True, f'{tag}: already published'
+    coin, until = on_site(api, rnd, number), time.time() + wait
+    while not coin and time.time() < until:                                        # its fingerprint is posted when the hider is away; give it a moment
+        time.sleep(10); coin = on_site(api, rnd, number)
+    if not coin: return False, f'{tag}: the book is not on the site yet - run tools/publish_hide.py once it is'
+    if coin.get('video_hash'):
+        open(marker, 'w').write(json.dumps(dict(sha256=coin['video_hash'], url=coin.get('video_url'), note='was on the site already'), indent=1))
+        return True, f'{tag}: a recording is already committed'
+    dur = float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', recording], capture_output=True, text=True, check=True).stdout)
+    end = notes.get('seconds_to_end')
+    end = min(dur - 0.3, end - 1.0) if end else dur - 2.0                            # the last second is never part of it
+    if end < 5: return False, f'{tag}: the recording is too short to be the recording of a hide'
+    folder = os.path.join(os.path.dirname(recording), 'published'); os.makedirs(folder, exist_ok=True)
+    clip = os.path.join(folder, f'r{rnd}-coin-{number}.mp4')
+    cut(recording, 0.0, end, clip, sound=True); stills(clip, clip[:-4] + '-stills.png')
+    if dry: return True, f'{tag}: {end:.0f} s, {os.path.getsize(clip) / 1e6:.1f} MB - dry run, nothing was sent'
+    done, said, sha = send(e, api, clip, rnd, number)
+    if done: open(marker, 'w').write(json.dumps(dict(sha256=sha, seconds=round(end, 1), bytes=os.path.getsize(clip), at=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())), indent=1))
+    return done, f'{tag}: {end:.0f} s, {os.path.getsize(clip) / 1e6:.1f} MB, ' + ('on the site' if done else said)
+
+
+def note(line):
+    print(line, flush=True)
+    try: open(os.path.join(RECORDINGS, 'publish.log'), 'a').write(time.strftime('%Y-%m-%d %H:%M:%S ') + line + '\n')
+    except OSError: pass
+
+
 def main():
     ap = argparse.ArgumentParser(description='Publish the recordings of hides.')
     ap.add_argument('paths', nargs='*'); ap.add_argument('--round', type=int); ap.add_argument('--number', type=int); ap.add_argument('--whole', action='store_true')
+    ap.add_argument('--recording'); ap.add_argument('--notes'); ap.add_argument('--sound', action='store_true')
     ap.add_argument('--log', default=LOG); ap.add_argument('--dry', action='store_true'); ap.add_argument('--yes', action='store_true'); ap.add_argument('--out', default=os.path.join(HOME, 'Movies', 'quillcoin-clips'))
-    ap.add_argument('--api', default=None, help=argparse.SUPPRESS)
+    ap.add_argument('--api', default=None, help=argparse.SUPPRESS); ap.add_argument('--wait', type=int, default=600, help=argparse.SUPPRESS)
     a = ap.parse_args()
+    e = env(); api = a.api or e['SUPABASE_URL'] + '/functions/v1/api'
+
+    if a.recording:                                                                # called by the hiding tool, right after a hide
+        try: done, said = own(a.recording, a.notes or a.recording[:-4] + '.json', e, api, a.dry, a.wait)
+        except Exception as x: done, said = False, f'{type(x).__name__}: {x}'
+        note(said); sys.exit(0 if done else 1)
+
+    if not a.paths:                                                                # whatever the hiding tool recorded and is not on the site yet
+        waiting = sorted(f for f in (os.listdir(RECORDINGS) if os.path.isdir(RECORDINGS) else []) if re.fullmatch(r'r\d+-coin-\d+\.json', f) and not os.path.exists(os.path.join(RECORDINGS, f[:-5] + '.published')))
+        if not waiting: print('nothing is waiting: every recording the hiding tool made is on the site. (Recordings made by hand: name the file or the folder.)'); return
+        bad = 0
+        for f in waiting:
+            try: done, said = own(os.path.join(RECORDINGS, f[:-5] + '.mp4'), os.path.join(RECORDINGS, f), e, api, a.dry, 0)
+            except Exception as x: done, said = False, f'{f}: {type(x).__name__}: {x}'
+            note(said); bad += not done
+        sys.exit(1 if bad else 0)
+
     known = runs(a.log) if os.path.exists(a.log) else []
     files = []
-    for p in (a.paths or FOLDERS):
+    for p in a.paths:
         p = os.path.expanduser(p)
         if os.path.isdir(p): files += sorted(os.path.join(p, f) for f in os.listdir(p) if f.lower().endswith(VIDEO) and not f.startswith('.'))
         elif os.path.exists(p): files.append(p)
-    if not a.paths:                                                                # nothing named: only recordings that can hold a hide from the log
-        first = min((r.get('start', r['stash']) for r in known), default=0) - 6 * 3600
-        files = [f for f in files if os.path.getmtime(f) >= first]
     if not files: raise SystemExit('no recording found')
-    e = env(); api = a.api or e['SUPABASE_URL'] + '/functions/v1/api'; store = e['SUPABASE_URL'] + '/storage/v1/object'
     s, body = call(api + '/board', None, {'user-agent': 'quillcoin-tools'}, 'GET')
     if s != 200: raise SystemExit(f'the site could not be read ({s})')
     board = {(r['id'], c['number']): c for r in json.loads(body)['rounds'] for c in r['coins']}
@@ -185,25 +263,18 @@ def main():
             if board[key].get('video_hash') and not a.dry: print(f'{tag}: a recording is already committed - skipped'); seen.add(key); continue
             if not win: print(f'{tag}: {why} ({os.path.basename(path)}, lined up by {how})'); continue
             clip = os.path.join(a.out, f"r{r['round']}-coin-{r['number']}.mp4"); sheet = clip[:-4] + '-stills.png'
-            kbps = cut(path, win[0], win[1], clip); stills(clip, sheet)
-            sha = hashlib.sha256(open(clip, 'rb').read()).hexdigest()
-            print(f"{tag}: {win[1] - win[0]:.0f} s of {os.path.basename(path)} (lined up by {how}) -> {os.path.getsize(clip) / 1e6:.1f} MB | sha256 {sha}")
+            cut(path, win[0], win[1], clip, a.sound); stills(clip, sheet)
+            print(f"{tag}: {win[1] - win[0]:.0f} s of {os.path.basename(path)} (lined up by {how}) -> {os.path.getsize(clip) / 1e6:.1f} MB")
             print(f'   clip   {clip}\n   stills {sheet}')
             seen.add(key)
             if a.dry: continue
             if not a.yes:
                 subprocess.run(['open', sheet], check=False)
-                print('   Look at the stills: black at the start, the dungeon and the chest at the end, and nothing of any place you would not show.')
+                print('   Look at the stills: nothing of any place you would not show, at the start or at the end.')
                 if input(f'   Publish the recording of {tag}? It can never be replaced by another. [y/N] ').strip().lower() not in ('y', 'yes'): print('   left alone'); continue
-            name = f"r{r['round']}/coin-{r['number']}-{secrets.token_hex(16)}.mp4"  # nobody can guess it, so the clip stays shut until the site publishes its address
-            s, body = call(f'{store}/hides/{name}', open(clip, 'rb').read(), {'authorization': 'Bearer ' + e['SUPABASE_SERVICE_KEY'], 'apikey': e['SUPABASE_SERVICE_KEY'], 'content-type': 'video/mp4', 'cache-control': 'max-age=31536000', 'x-upsert': 'false'})
-            if s >= 300: print(f'   the storage refused it ({s}): {body[:160]}'); continue
-            url = f"{e['SUPABASE_URL']}/storage/v1/object/public/hides/{name}"
-            s, body = call(api + '/video', json.dumps(dict(round=r['round'], number=r['number'], sha256=sha, url=url)).encode(), {'authorization': 'Bearer ' + e['HIDER_KEY'], 'content-type': 'application/json', 'user-agent': 'quillcoin-tools'})
-            try: said = json.loads(body).get('message', body)
-            except ValueError: said = body[:140]
-            print(f'   {"committed" if s < 300 else "NOT committed (" + str(s) + ")"}: {said}')
-            done += s < 300
+            ok, said, sha = send(e, api, clip, r['round'], r['number'])
+            print(f'   {said}\n   sha256 {sha}')
+            done += ok
     print('dry run: nothing left this computer' if a.dry else f'{done} recording(s) published')
 
 

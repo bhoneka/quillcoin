@@ -32,7 +32,7 @@ Base: `https://ovjeipprgkeygnlkraiu.supabase.co/functions/v1/api`
 | `POST /claim {wallet}` | signed-in finder | Sends the finder's whole site balance to their Solana wallet. Refuses addresses that are not wallets. |
 | `POST /settle` | signed-in finder | Looks up a transfer that was left open and settles it: arrived, or back on the site. |
 | `POST /hide` | the hider tool | Commits a book's fingerprint. Refused once the round is open, and once the round holds all of its books. |
-| `POST /video` | the hider | Commits the fingerprint of a hide's recording, and the address the recording is kept at. A committed fingerprint can never be replaced by another. |
+| `POST /video` | the hider | Commits the recording of a hide: its address and its fingerprint, both public at once. A committed fingerprint can never be replaced by another. |
 
 A code is never stored. It arrives at `/check` and `/redeem`, is hashed at once, and only the hash is looked up.
 
@@ -42,7 +42,7 @@ A code is never stored. It arrives at `/check` and `/redeem`, is hashed at once,
 - **Nothing joins an open round.** `/hide` refuses new books once a round has opened, and refuses real rounds from anywhere but 2b2t.org.
 - **The ring is fixed before the hunt.** Every round publishes how far from spawn its books are (`ring_min`, `ring_max`); once the round is open the database refuses to change it.
 - **So is the number of books.** Every round publishes how many books it holds (`planned`). The database refuses a book too many, and refuses to change the number once the round is open.
-- **A recording opens when its book is found.** Its fingerprint (`video_hash`) is public from the moment it is committed. Its address is kept in a table only the API can read, and is written onto the book in the same transaction as the find. It is kept back until then because a recording of a dungeon can give its place away: the pattern of a dungeon's floor is decided by the world's seed, and 2b2t's seed is known.
+- **A recording's fingerprint cannot be replaced.** A recording is public from the moment it is committed (`video_url`, `video_hash`, `video_at`); committing a different fingerprint for the same book is refused.
 - **The hider cannot redeem.** Accounts on the `blacklist` table are refused.
 - **The position of a chest is sealed.** The hider tool encrypts it (AES-256-GCM) under a key derived from the book's code. The site stores the sealed box and can only open it with the code, which it sees for the first time when the book is redeemed.
 - **The ledger only grows.** Updates, deletes and truncates are refused by triggers.
