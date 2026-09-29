@@ -14,11 +14,12 @@
 //
 // What it needs: about 0.1 SOL sent to the address it prints, from a wallet of your own.
 // Roughly 0.03 of it pays for creating the token; the rest pays the network when finders move their coins (about 0.002 each).
-import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { ComputeBudgetProgram, Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
 import { createMint, getMint } from '@solana/spl-token';
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
 import { createMetadataAccountV3, findMetadataPda, fetchMetadata } from '@metaplex-foundation/mpl-token-metadata';
 import { keypairIdentity, publicKey } from '@metaplex-foundation/umi';
+import { toWeb3JsInstruction } from '@metaplex-foundation/umi-web3js-adapters';
 import { execFileSync } from 'child_process';
 import readline from 'readline/promises';
 import fs from 'fs'; import os from 'os'; import path from 'path'; import url from 'url';
@@ -94,19 +95,33 @@ else {
 }
 
 // 4. its name, ticker and logo
+// Sent the same way the token itself was created, with a small tip so the network takes it, and tried again over both
+// doors to the network when one of them does not answer. Before every try the network is asked whether it is there already.
 const umi = createUmi(rpcUrl);
 umi.use(keypairIdentity(umi.eddsa.createKeypairFromSecretKey(kp.secretKey)));
 const pda = findMetadataPda(umi, { mint: publicKey(mint.toBase58()) });
-let meta = null;
-try { meta = await fetchMetadata(umi, pda); } catch (e) { }
+const readMeta = async () => {
+  for (const u of RPCS) { try { return await fetchMetadata(createUmi(u), pda); } catch (e) { } }
+  return null;
+};
+let meta = await readMeta();
 if (!meta) {
   console.log('Writing its name, ticker and logo...');
-  await createMetadataAccountV3(umi, {
+  const steps = createMetadataAccountV3(umi, {
     mint: publicKey(mint.toBase58()), mintAuthority: umi.identity, payer: umi.identity, updateAuthority: umi.identity.publicKey,
     data: { name: NAME, symbol: SYMBOL, uri: URI, sellerFeeBasisPoints: 0, creators: null, collection: null, uses: null },
     isMutable: true, collectionDetails: null,                                  // the logo can still be replaced; the supply rules above cannot
-  }).sendAndConfirm(umi);
-  for (let i = 0; i < 10 && !meta; i++) { await sleep(2000); try { meta = await fetchMetadata(umi, pda); } catch (e) { } }
+  }).getInstructions().map(toWeb3JsInstruction);
+  for (let attempt = 1; attempt <= 6 && !meta; attempt++) {
+    const u = RPCS[(attempt - 1) % RPCS.length];
+    try {
+      const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 120_000 }), ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 200_000 }), ...steps);
+      await sendAndConfirmTransaction(new Connection(u, 'confirmed'), tx, [kp], { commitment: 'confirmed', maxRetries: 5 });
+    } catch (e) {
+      console.log(`  try ${attempt} did not get through (${String(e.message).split('\n')[0].slice(0, 100)})`);
+    }
+    for (let i = 0; i < 5 && !meta; i++) { await sleep(2000); meta = await readMeta(); }     // it may have arrived even when nobody said so
+  }
 }
 
 // 5. read everything back from the network
@@ -120,7 +135,7 @@ console.log('  supply         ', (Number(m.supply) / 10 ** m.decimals).toString(
 console.log('  can be frozen  ', m.freezeAuthority ? 'YES - this is wrong' : 'no, by nobody');
 console.log('  created by     ', m.mintAuthority?.toBase58());
 console.log('  to look at it  ', explorer('address', mint.toBase58()));
-if (!okay) stop('Something is not as it should be. Wallet transfers were NOT opened. Run the script again, or look at the lines above.');
+if (!okay) stop('Something is not as it should be. Wallet transfers were NOT opened. Nothing is lost: run the script again, it goes on from here.');
 
 // 6. the site
 if (process.argv.includes('--no-site')) stop('Done. The site was left as it is (--no-site).');
@@ -129,7 +144,11 @@ if (!await ask('Open wallet transfers on quillcoin.gg now? From that moment find
 const tmp = path.join(dir, '.secrets-' + process.pid);
 try {
   fs.writeFileSync(tmp, `QLL_NETWORK=mainnet\nQLL_RPC=${SITE_RPC}\nQLL_MINT=${mint.toBase58()}\nQLL_AUTHORITY=${JSON.stringify([...kp.secretKey])}\n`, { mode: 0o600 });
-  execFileSync('supabase', ['secrets', 'set', '--env-file', tmp], { cwd: repo, stdio: ['ignore', 'ignore', 'inherit'] });
+  const tool = ['/opt/homebrew/bin/supabase', '/usr/local/bin/supabase'].find(f => fs.existsSync(f)) || 'supabase';
+  execFileSync(tool, ['secrets', 'set', '--env-file', tmp], { cwd: repo, stdio: ['ignore', 'ignore', 'inherit'] });
+} catch (e) {
+  try { fs.rmSync(tmp); } catch (e2) { }
+  stop('The site could not be told (' + String(e.message).split('\n')[0].slice(0, 120) + '). The token is fine. Run the script again to try this last step once more.');
 } finally { try { fs.rmSync(tmp); } catch (e) { } }
 await sleep(4000);
 const live = await (await fetch('https://ovjeipprgkeygnlkraiu.supabase.co/functions/v1/api/ledger')).json();
