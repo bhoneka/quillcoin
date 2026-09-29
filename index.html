@@ -22,7 +22,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="description" content="Signed books hidden in 2b2t dungeon chests. Find one. Redeem the code. Own a coin.">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin="anonymous">
-<link rel="stylesheet" href="site.css?v=18">
+<link rel="stylesheet" href="site.css?v=19">
 </head>
 <body>
 <div class="bar">
@@ -192,6 +192,17 @@
       <p><b>The words that open your wallet</b> (its recovery phrase) are yours alone. Nobody from QuillCoin will ever ask for them. Anybody who does is robbing you.</p>
     </div></details>
 
+    <details class="guide open-only" id="g-fake"><summary><span class="k"></span><span>Which QuillCoin is the real one?</span><span class="pm">+</span></summary><div class="gb">
+      <p><b>A token's address is its only real name.</b> On Solana anybody can make a token, call it QuillCoin, give it the same ticker and even point it at this site. Copies exist already. They have nothing to do with the books.</p>
+      <p>The real one is this address, and only this one:</p>
+      <p><b class="the-mint" style="text-transform:none;word-break:break-all"></b></p>
+      <ul>
+        <li><b>It started at zero.</b> A coin only comes into existence when a book is redeemed, and <a href="ledger.html">the ledger</a> lists every one of them.</li>
+        <li><b>Nobody here sells QuillCoin.</b> There was no sale and there will not be one. If a wallet or an exchange offers you QLL, compare its address with the one above before you do anything. A different address is a different token, whatever it is called.</li>
+        <li><b>The same goes for sites.</b> This one is quillcoin.gg. A code typed anywhere else is a code given away.</li>
+      </ul>
+    </div></details>
+
     <details class="guide testnet-only" id="g-test"><summary><span class="k"></span><span>Right now: the test round and the test network</span><span class="pm">+</span></summary><div class="gb">
       <p>Before the first real round, the whole machine is being tried in public. <b>Round 0</b> is that test: its books, its coins and the token they arrive as live on Solana's test network and are <b>worth nothing</b>. They will not carry over.</p>
       <p>The real token's address will be published on this page and in the ledger before any real coin can be moved to a wallet.</p>
@@ -271,6 +282,6 @@
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin="anonymous"></script>
-<script src="site.js?v=18"></script>
+<script src="site.js?v=19"></script>
 </body>
 </html>

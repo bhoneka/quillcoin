@@ -484,6 +484,7 @@ fetch(API + '/ledger').then(r => r.json()).then(j => {
   if (token.mint) {
     const a = $('#lnk-token'); a.href = 'https://explorer.solana.com/address/' + encodeURIComponent(token.mint) + q; a.hidden = false;
     $('#mint-line').hidden = false; $('#mint').textContent = token.mint;
+    document.querySelectorAll('.the-mint').forEach(e => { e.textContent = token.mint; });
     $('#mint-copy').onclick = async () => { try { await navigator.clipboard.writeText(token.mint); $('#mint-copy').textContent = 'COPIED'; setTimeout(() => $('#mint-copy').textContent = 'COPY', 1500); } catch (e) {} };
   }
   if (!armed) $('#btn-claim').textContent = claimLabel();

@@ -155,7 +155,7 @@ site_url = "https://quillcoin.gg"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://quillcoin.gg", "https://quillcoin.gg/*", "http://127.0.0.1:4640", "http://127.0.0.1:4640/*"]
+additional_redirect_urls = ["https://quillcoin.gg", "https://quillcoin.gg/*"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -212,8 +212,8 @@ web3 = 30
 # secret = ""
 
 [auth.email]
-# Allow/disallow new user signups via email to your project.
-enable_signup = true
+# Signing in is through Discord only. Nobody can make an account with an email address and a password.
+enable_signup = false
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
