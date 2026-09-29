@@ -12,10 +12,10 @@ Publishes the recordings of hides.
   --yes    do not ask before sending (recordings made by hand)
   --sound  keep the sound of a recording made by hand (it is removed otherwise: it may hold a microphone)
 
-THE HIDING TOOL'S OWN RECORDINGS hold the game's window and the game's own sound, from the moment a run starts until the
-hider is away from the chest. The world is hidden before such a recording begins and until it has ended, so there is
-nothing to cut: the last second is dropped, everything stored inside the file (device, dates, names) is removed, and it
-is made small enough to keep.
+THE HIDING TOOL'S OWN RECORDINGS hold the game's window and the game's own sound, from the moment a run starts until a
+few seconds after the hider is away from the chest (as many as the hiding tool is set to; none, if it is set to none).
+The world is hidden before such a recording begins, so there is nothing to cut: everything stored inside the file
+(device, dates, names) is removed, and it is made small enough to keep.
 
 RECORDINGS MADE BY HAND may be as long as you like and hold several hides. For each hide the tool cuts the clip to the
 run itself: it begins when the run begins and ends when the hider leaves, a moment inside both, so that neither the
@@ -194,7 +194,8 @@ def own(recording, notes_path, e, api, dry=False, wait=600):
         return True, f'{tag}: a recording is already committed'
     dur = float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', recording], capture_output=True, text=True, check=True).stdout)
     end = notes.get('seconds_to_end')
-    end = min(dur - 0.3, end - 1.0) if end else dur - 2.0                            # the last second is never part of it
+    if notes.get('seconds_to_away') is not None and end: end = min(dur - 0.05, end)  # it went on after the hider had left, on purpose: all of it is kept
+    else: end = min(dur - 0.3, end - 1.0) if end else dur - 2.0                      # otherwise the last second is never part of it
     if end < 5: return False, f'{tag}: the recording is too short to be the recording of a hide'
     folder = os.path.join(os.path.dirname(recording), 'published'); os.makedirs(folder, exist_ok=True)
     clip = os.path.join(folder, f'r{rnd}-coin-{number}.mp4')
