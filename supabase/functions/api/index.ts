@@ -88,18 +88,18 @@ Deno.serve(async (req) => {
 
 async function board(round: number) {
   if (!Number.isInteger(round) || round < 0) return json(400, { ok: false, message: "bad round" });
-  const { data: r } = await admin.from("rounds").select("id, opened_at, closed_at, note, ring_min, ring_max").eq("id", round).maybeSingle();
+  const { data: r } = await admin.from("rounds").select("id, opened_at, closed_at, note, ring_min, ring_max, planned").eq("id", round).maybeSingle();
   if (!r) return json(404, { ok: false, message: "no such round" });
   const { data: coins, error } = await admin.from("coins")
-    .select("number, hash, hidden_at, blind, server, found_at, found_ign, found_name, found_x, found_y, found_z, video_hash, video_url").eq("round", round).order("number");
+    .select("number, hash, hidden_at, blind, server, found_at, found_ign, found_name, found_x, found_y, found_z, video_hash, video_at, video_url").eq("round", round).order("number");
   if (error) throw error;
-  const list = coins ?? [];                                                   // recordings are public from the day of the hide: the small distance hint they give away is worth the proof
+  const list = coins ?? [];                                                   // a recording's fingerprint is public at once; its address is only written onto the coin when the book is found
   return json(200, { ok: true, round: r, coins: list, hidden: list.length, found: list.filter((c) => c.found_at).length });
 }
 
-const COIN_FIELDS = "round, number, hash, hidden_at, blind, server, found_at, found_ign, found_name, found_x, found_y, found_z, video_hash, video_url";
+const COIN_FIELDS = "round, number, hash, hidden_at, blind, server, found_at, found_ign, found_name, found_x, found_y, found_z, video_hash, video_at, video_url";
 async function boardAll() {
-  const { data: rs, error: e1 } = await admin.from("rounds").select("id, opened_at, closed_at, note, ring_min, ring_max").order("id");
+  const { data: rs, error: e1 } = await admin.from("rounds").select("id, opened_at, closed_at, note, ring_min, ring_max, planned").order("id");
   if (e1) throw e1;
   const { data: coins, error: e2 } = await admin.from("coins").select(COIN_FIELDS).order("number");
   if (e2) throw e2;
@@ -126,6 +126,7 @@ async function ledger(u: URL) {
     ...page,
     minted: Number(tot.minted ?? 0), founder: Number(tot.founder ?? 0), on_site: Number(tot.on_site ?? 0), in_wallets: Number(tot.in_wallets ?? 0), in_flight: Number(tot.in_flight ?? 0),
     founder_wallet: Deno.env.get("QLL_FOUNDER") ?? null, mint: Deno.env.get("QLL_MINT") ?? null, network: Deno.env.get("QLL_NETWORK") ?? "devnet",
+    claims: Deno.env.get("QLL_MINT") && Deno.env.get("QLL_AUTHORITY") && Deno.env.get("QLL_FOUNDER") ? "open" : "soon",      // moving coins to a wallet needs the token to exist
     hashing: "sha256( prev | id | at | delta | reason | coin_round | coin_number | who ), empty for a missing value, joined with |",
     anchor: "every claim writes quillcoin-ledger:<newest hash> into its own Solana transaction",
     transfers_total: Number(tot.transfers ?? 0), transfers,
@@ -151,7 +152,7 @@ async function hide(req: Request) {
   if (round > 0 && !(server && /(^|\.)2b2t\.org$/.test(server))) {
     return json(400, { ok: false, message: "only hides made on 2b2t.org can join a real round - singleplayer hides belong to round 0" });
   }
-  const { data: r } = await admin.from("rounds").select("id, opened_at").eq("id", round).maybeSingle();
+  const { data: r } = await admin.from("rounds").select("id, opened_at, planned").eq("id", round).maybeSingle();
   if (!r) return json(404, { ok: false, message: "no such round" });
   if (round > 0 && r.opened_at && new Date(r.opened_at) <= new Date()) {
     return json(409, { ok: false, message: "round already open - nothing can be added" });
@@ -167,24 +168,38 @@ async function hide(req: Request) {
       }
       return json(409, { ok: false, message: "number or hash already used" });
     }
+    // the database has the last word on a round's size and on whether it is open
+    if (/already holds all|is open/.test(error.message ?? "")) return json(409, { ok: false, message: error.message });
     throw error;
   }
   return json(201, { ok: true, message: `R${round} coin ${number} committed` });
 }
 
-/** Hider only: commit a recording's hash for a coin (before the round opens), and the link that is shown once the coin is found. */
+/**
+ * Hider only: commits the recording of a hide. Body: {round, number, sha256, url}.
+ * The fingerprint is public at once and can never be replaced by another. The address is kept back until the book is found,
+ * because a recording of a dungeon can give its place away: the pattern of its floor is decided by the world's seed.
+ */
 async function video(req: Request) {
   const auth = req.headers.get("authorization") ?? "";
   if (!HIDER_KEY || !auth.startsWith("Bearer ") || !sameSecret(auth.slice(7).trim(), HIDER_KEY)) return json(401, { ok: false, message: "bad hider key" });
   const b = await req.json().catch(() => null);
-  const round = Number(b?.round), number = Number(b?.number), sha = String(b?.sha256 ?? "").toLowerCase(), url = typeof b?.url === "string" ? b.url.slice(0, 300) : null;
+  const round = Number(b?.round), number = Number(b?.number), sha = String(b?.sha256 ?? "").toLowerCase();
+  const url = typeof b?.url === "string" && /^https:\/\/[^\s"'<>]{4,290}$/.test(b.url) ? b.url : null;
   if (!Number.isInteger(round) || !Number.isInteger(number) || !/^[0-9a-f]{64}$/.test(sha)) return json(400, { ok: false, message: "bad fields" });
-  const { data: c } = await admin.from("coins").select("video_hash").eq("round", round).eq("number", number).maybeSingle();
+  const { data: c } = await admin.from("coins").select("video_hash, found_at").eq("round", round).eq("number", number).maybeSingle();
   if (!c) return json(404, { ok: false, message: "no such coin" });
   if (c.video_hash && c.video_hash !== sha) return json(409, { ok: false, message: "a different recording is already committed for this coin" });
-  const { error } = await admin.from("coins").update({ video_hash: sha, video_url: url }).eq("round", round).eq("number", number);
+  if (url) {
+    const { error: e0 } = await admin.from("recordings").upsert({ round, number, url }, { onConflict: "round,number" });
+    if (e0) throw e0;
+  }
+  const change: Record<string, unknown> = { video_hash: sha };
+  if (!c.video_hash) change.video_at = new Date().toISOString();
+  if (c.found_at && url) change.video_url = url;                               // found already: nothing is left to give away
+  const { error } = await admin.from("coins").update(change).eq("round", round).eq("number", number);
   if (error) throw error;
-  return json(200, { ok: true, message: `recording committed for R${round} coin ${number}` });
+  return json(200, { ok: true, message: `recording committed for R${round} coin ${number}` + (c.found_at ? "" : " - it opens when the book is found") });
 }
 
 async function check(req: Request) {

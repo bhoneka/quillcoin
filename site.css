@@ -311,3 +311,8 @@ a.rlinks { margin:0 }
 #guide { counter-reset:g } .guide summary .k::before { counter-increment:g; content:counter(g, decimal-leading-zero) }
 .mainnet .testnet-only { display:none }
 .ring-chip { border-color:rgba(255,212,0,.6) } .ring-chip i { display:inline-block; width:10px; height:10px; border:2px solid var(--hot); border-radius:50%; margin-right:7px; vertical-align:-1px }
+.round-bar { flex-wrap:wrap; row-gap:4px }
+.round-bar .ring { font-size:11px; letter-spacing:.14em; font-weight:700; border-left:2px solid rgba(0,0,0,.35); padding-left:12px }
+.video video { width:100%; height:100%; background:#000; display:block }
+.soon-only { display:none } .claims-soon .soon-only { display:block } .claims-soon .open-only { display:none !important }
+@media (max-width:700px){ .round-bar .ring { order:3; flex-basis:100%; border-left:0; padding-left:21px; font-size:10px; letter-spacing:.08em } }

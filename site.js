@@ -14,11 +14,14 @@ const validIgn = v => /^[A-Za-z0-9_]{3,16}$/.test(v);
 const head = ign => validIgn(ign || '') ? `<img class="head" src="https://mc-heads.net/avatar/${encodeURIComponent(ign)}/16" alt="">` : '';
 const finder = c => esc((c.found_ign || c.found_name || 'ANONYMOUS').toUpperCase());
 const embedUrl = u => { const m = String(u).match(/(?:youtu\.be\/|[?&]v=|\/embed\/)([\w-]{6,})/); return m ? 'https://www.youtube.com/embed/' + m[1] : null; };
+const isFile = u => /\.(mp4|webm|mov)(\?|$)/i.test(String(u));
+// a recording either lives on this site (a file, played right here and downloadable, so anyone can hash it) or on YouTube
+const player = (u, auto) => isFile(u) ? `<video controls playsinline preload="metadata" ${auto ? 'autoplay' : ''} src="${esc(u)}"></video>` : embedUrl(u) ? `<iframe src="${embedUrl(u)}${auto ? '?autoplay=1' : ''}" allow="${auto ? 'autoplay; ' : ''}fullscreen" loading="lazy"></iframe>` : '';
 const roundName = id => 'ROUND ' + id;
 const short = a => a.slice(0, 4) + '…' + a.slice(-4);
 
 // ------------------------------------------------------------------ rounds and their books
-let rounds = [], view = 'cards', openSet = new Set(), token = { mint: null, network: 'devnet', founder: null }, myBal = 0;
+let rounds = [], view = 'cards', openSet = new Set(), token = { mint: null, network: 'devnet', founder: null, claims: 'open' }, myBal = 0;
 try { view = localStorage.getItem('qll-view') === 'list' ? 'list' : 'cards'; } catch (e) {}
 const allCoins = () => rounds.flatMap(r => r.coins);
 const coinOf = (r, n) => allCoins().find(c => c.round === r && c.number === n);
@@ -29,9 +32,12 @@ function roundStatus(r){
   const now = Date.now(), opened = r.opened_at && Date.parse(r.opened_at) <= now, closed = r.closed_at && Date.parse(r.closed_at) <= now;
   if (r.id === 0) return 'THE TEST ROUND · ITS COINS ARE WORTH NOTHING · IT IS HERE SO THE WHOLE MACHINE CAN BE TRIED IN PUBLIC';
   if (closed) return 'CLOSED ' + day(r.closed_at);
-  return opened ? 'OPEN SINCE ' + day(r.opened_at) + ' · ITS LIST OF BOOKS WAS LOCKED BEFORE THAT DAY' : 'NOT OPEN YET · ITS BOOKS ARE STILL BEING HIDDEN';
+  if (opened) return 'OPEN SINCE ' + day(r.opened_at) + ' · ITS LIST OF BOOKS WAS LOCKED BEFORE THAT DAY';
+  if (r.planned && r.coins.length >= r.planned) return 'NOT OPEN YET · ALL ' + r.planned + ' BOOKS ARE HIDDEN · REDEEMING STARTS WHEN THE ROUND OPENS';
+  return 'NOT OPEN YET · ' + (r.planned ? r.coins.length + ' OF ' + r.planned + ' BOOKS HIDDEN SO FAR' : 'ITS BOOKS ARE STILL BEING HIDDEN');
 }
-const vidLink = c => c.video_url ? `<a href="${esc(c.video_url)}" data-hide="${c.round}-${c.number}" title="recording sha256 ${c.video_hash || ''}">WATCH THE HIDE ↗</a>` : '';
+// a recording opens when its book is found: until then only its fingerprint is public (a dungeon's floor can give its place away)
+const vidLink = c => c.video_url ? `<a href="${esc(c.video_url)}" data-hide="${c.round}-${c.number}" title="recording sha256 ${c.video_hash || ''}">WATCH THE HIDE ↗</a>` : c.video_hash ? `<span title="recording sha256 ${c.video_hash}">ON CAMERA · OPENS WHEN FOUND</span>` : '';
 function cardHTML(c, i){
   const f = !!c.found_at, v = vidLink(c);
   const st = f ? head(c.found_ign) + 'FOUND · ' + finder(c) + ' · ' + day(c.found_at) : 'STILL OUT · SINCE ' + day(c.hidden_at);
@@ -49,7 +55,7 @@ function renderRounds(){
     const body = !r.coins.length ? '<div class="card empty">NOTHING HIDDEN YET</div>'
       : view === 'list' ? `<ol class="list">${r.coins.map(rowHTML).join('')}</ol>` : `<div class="grid">${r.coins.map(cardHTML).join('')}</div>`;
     return `<div class="round${openSet.has(r.id) ? ' open' : ''}" data-round="${r.id}">
-      <button class="round-bar" data-toggle="${r.id}" aria-expanded="${openSet.has(r.id)}"><span class="chev">▶</span><span class="t">${roundName(r.id)}</span><span class="m">${r.id === 0 ? 'TEST · ' : ''}${r.coins.length} HIDDEN · ${found.length} FOUND</span></button>
+      <button class="round-bar" data-toggle="${r.id}" aria-expanded="${openSet.has(r.id)}"><span class="chev">▶</span><span class="t">${roundName(r.id)}</span><span class="ring">${blocks(ringOf(r.id).min)} TO ${blocks(ringOf(r.id).max)} BLOCKS FROM SPAWN</span><span class="m">${r.id === 0 ? 'TEST · ' : ''}${r.planned ? r.planned + ' BOOKS · ' : ''}${r.coins.length} HIDDEN · ${found.length} FOUND</span></button>
       <div class="round-body"><div><div class="round-in">
         <p class="rstat">${roundStatus(r)}</p>
         <p class="rstat">ITS BOOKS ARE BETWEEN ${blocks(ringOf(r.id).min)} AND ${blocks(ringOf(r.id).max)} BLOCKS FROM SPAWN, IN ANY DIRECTION.</p>
@@ -93,10 +99,10 @@ $('#v-list').onclick = () => { view = 'list'; try { localStorage.setItem('qll-vi
 // ------------------------------------------------------------------ the recording of a hide
 function openHide(r, n){
   const c = coinOf(r, n); if (!c || !c.video_url) return;
-  const e = embedUrl(c.video_url); if (!e) { window.open(c.video_url, '_blank', 'noopener'); return; }
+  const e = player(c.video_url, true); if (!e) { window.open(c.video_url, '_blank', 'noopener'); return; }
   $('#proof').hidden = false; $('#proof-title').textContent = 'PROOF · ' + roundName(r) + ' · COIN ' + c.number;
-  $('#proof-video').innerHTML = `<iframe src="${e}?autoplay=1" allow="autoplay; fullscreen" loading="lazy"></iframe>`;
-  $('#proof-meta').innerHTML = 'HIDDEN ' + day(c.hidden_at) + (c.video_hash ? ' · RECORDING SHA256 <span style="text-transform:none">' + c.video_hash.slice(0, 16) + '…</span>' : '') + ` · <a href="${esc(c.video_url)}" target="_blank" rel="noopener" style="text-decoration:underline">OPEN ON YOUTUBE ↗</a>`;
+  $('#proof-video').innerHTML = e;
+  $('#proof-meta').innerHTML = 'HIDDEN ' + day(c.hidden_at) + (c.video_hash ? ' · RECORDING SHA256 <span style="text-transform:none">' + c.video_hash.slice(0, 16) + '…</span>' : '') + ` · <a href="${esc(c.video_url)}" target="_blank" rel="noopener" style="text-decoration:underline">${isFile(c.video_url) ? 'THE FILE ITSELF ↗' : 'OPEN ON YOUTUBE ↗'}</a>`;
   $('#proof').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -230,7 +236,7 @@ function openCoin(r, n, opts = {}){
   closeCoin();
   const f = !!c.found_at, at = placed(c), reveal = !!opts.reveal && f;
   const days = Math.max(0, Math.floor(((f ? Date.parse(c.found_at) : Date.now()) - Date.parse(c.hidden_at)) / 864e5));
-  const e = c.video_url ? embedUrl(c.video_url) : null;
+  const e = c.video_url ? player(c.video_url, false) : null;
   // [label, value or null when nobody knows, glyph pattern]
   const fields = [
     ['COORDINATES', at ? c.found_x + ', ' + (Number.isInteger(c.found_y) ? c.found_y + ', ' : '') + c.found_z : null, 'ggggg, gg, ggggg'],
@@ -253,10 +259,11 @@ function openCoin(r, n, opts = {}){
     ${f ? '' : '<p class="note">THE GLYPHS ARE WHAT NOBODY KNOWS YET. ONLY THE CODE INSIDE THE BOOK CAN UNLOCK THEM.</p>'}
     <div class="cfull"><span>ITS FINGERPRINT · PUBLISHED BEFORE THE HUNT · SHA256 OF THE CODE</span><b class="hash">${c.hash}</b></div>
     <div id="coin-map" class="${at ? '' : 'grey'}"></div>
-    ${e ? `<div class="cfull"><span>THE HIDE, ON CAMERA${c.video_hash ? ' · RECORDING SHA256 ' + c.video_hash.slice(0, 16) + '…' : ''}</span><div class="video"><iframe src="${e}" allow="fullscreen" loading="lazy"></iframe></div></div>`
+    ${e ? `<div class="cfull"><span>THE HIDE, ON CAMERA${c.video_hash ? ' · RECORDING SHA256 ' + c.video_hash.slice(0, 16) + '…' : ''}</span><div class="video">${e}</div>${isFile(c.video_url) ? `<p class="note" style="margin-top:8px"><a href="${esc(c.video_url)}" target="_blank" rel="noopener" style="text-decoration:underline">THE FILE ITSELF ↗</a> · DOWNLOAD IT, HASH IT, AND COMPARE WITH THE RECORDING'S FINGERPRINT${c.video_at ? ', COMMITTED ' + day(c.video_at) : ''}:</p><b class="hash">${c.video_hash || ''}</b>` : ''}</div>`
         : c.video_url ? `<div class="cfull"><span>THE HIDE, ON CAMERA</span><a href="${esc(c.video_url)}" target="_blank" rel="noopener" style="text-decoration:underline">WATCH THE HIDE ↗</a></div>`
-        : '<div class="cfull"><span>THE HIDE, ON CAMERA</span><b style="font-weight:400;color:var(--dim)">NO RECORDING WAS PUBLISHED FOR THIS COIN</b></div>'}
-    <div class="row">${reveal ? '<button id="coin-claim">CLAIM TO WALLET</button>' : ''}<button class="ghost" id="coin-open-map">${at ? 'OPEN IN THE MAP ↗' : 'OPEN THE MAP ↗'}</button></div>`;
+        : c.video_hash ? `<div class="cfull"><span>THE HIDE, ON CAMERA · FINGERPRINT OF THE RECORDING${c.video_at ? ' · COMMITTED ' + day(c.video_at) : ''}</span><b class="hash">${c.video_hash}</b><p class="note" style="margin-top:8px">${f ? 'THE RECORDING IS BEING PUBLISHED.' : 'THE RECORDING OPENS THE MOMENT THIS BOOK IS FOUND. UNTIL THEN IT STAYS SHUT, BECAUSE THE FLOOR OF A DUNGEON IS ENOUGH TO WORK OUT WHERE IT IS. ITS FINGERPRINT IS ALREADY HERE, SO THE FILE CAN NEVER BE SWAPPED FOR ANOTHER.'}</p></div>`
+        : `<div class="cfull"><span>THE HIDE, ON CAMERA</span><b style="font-weight:400;color:var(--dim)">${f ? 'NO RECORDING WAS PUBLISHED FOR THIS COIN' : 'NO RECORDING HAS BEEN COMMITTED FOR THIS COIN YET'}</b></div>`}
+    <div class="row">${reveal && token.claims !== 'soon' ? '<button id="coin-claim">CLAIM TO WALLET</button>' : ''}<button class="ghost" id="coin-open-map">${at ? 'OPEN IN THE MAP ↗' : 'OPEN THE MAP ↗'}</button></div>`;
   $('#coin').hidden = false; $('#coin').scrollTop = 0;
   sheet.querySelectorAll('.gl').forEach((el, k) => {
     const t = glyphs(el, el.dataset.p), b = el.parentElement, i = +b.dataset.f;
@@ -264,7 +271,7 @@ function openCoin(r, n, opts = {}){
   });
   $('#coin-x').onclick = closeCoin;
   $('#coin-open-map').onclick = () => { closeCoin(); setMapMode(true); if (at) setTimeout(() => goTo(c.found_x, c.found_z), 1000); };
-  if (reveal) $('#coin-claim').onclick = () => { closeCoin(); toClaim(); };
+  if (reveal && $('#coin-claim')) $('#coin-claim').onclick = () => { closeCoin(); toClaim(); };
   miniMap = L.map('coin-map', { crs: L.CRS.Simple, minZoom: -1, maxZoom: 12, zoomControl: false, attributionControl: false, zoomSnap: 0, scrollWheelZoom: false });
   placeLayer('base', tileOpts()).addTo(miniMap); placeLayer('overlay', tileOpts()).addTo(miniMap);
   if (at) { miniMap.setView(toLatLng(c.found_x, c.found_z), 5.5); L.marker(toLatLng(c.found_x, c.found_z), { icon: bookIcon, interactive: false }).addTo(miniMap); }
@@ -291,7 +298,7 @@ function renderAccount(a){
   $('#acc-total').textContent = a.total.toFixed(1);
   $('#acc-split').textContent = 'ON THE SITE ' + a.bal.toFixed(1) + ' · IN YOUR WALLET ' + a.inWallet.toFixed(1) + ' · ' + a.books.length + (a.books.length === 1 ? ' BOOK' : ' BOOKS');
   $('#acc-books').innerHTML = a.books.map(e => `<div class="own" data-own="${e.coin_number}" data-round="${e.coin_round}"><img src="book-gold.svg" alt="">${roundName(e.coin_round)} · COIN ${e.coin_number} · ${day(e.at)}</div>`).join('') || '<div>NO BOOKS YET. GO FIND ONE.</div>';
-  $('#acc-claim').disabled = !(a.bal > 0);
+  $('#acc-claim').disabled = !(a.bal > 0) || token.claims === 'soon';
   $('#acc-wallet').hidden = !a.wallet; if (a.wallet) $('#acc-wallet').innerHTML = 'YOUR WALLET · <span class="addr">' + esc(short(a.wallet)) + '</span>';
 }
 $('#nav-account').onclick = e => { e.preventDefault(); if (!session) { $('#btn-discord').click(); return; } $('#account').hidden = !$('#account').hidden; };
@@ -335,7 +342,7 @@ async function showAuth(){
     if (lastWallet && !$('#wallet').value.trim() && !walletTouched) { $('#wallet').value = lastWallet; $('#wallet-note').hidden = false; }
     if (waiting.length) { $('#claim-msg').textContent = 'A TRANSFER OF ' + onWay.toFixed(1) + ' QLL IS BEING CONFIRMED BY THE NETWORK. THIS PAGE IS WATCHING IT.'; watchTransfer(); }
     else { if (settleTries) $('#claim-msg').textContent = ''; settleTries = 0; }
-    myBal = bal; $('#btn-claim').disabled = !(bal > 0);
+    myBal = bal; $('#btn-claim').disabled = !(bal > 0) || token.claims === 'soon';
     renderAccount(Object.assign(me, { bal, inWallet, total: bal + inWallet + onWay, books: rows, wallet: lastWallet }));
     $('#claims').innerHTML = sent.map(c => `${Number(c.amount).toFixed(1)} QLL → <span class="addr">${esc(short(c.wallet))}</span> · ${day(c.at)} · <a href="https://explorer.solana.com/tx/${esc(c.tx)}${c.network === 'mainnet' ? '' : '?cluster=' + esc(c.network)}" target="_blank" rel="noopener">VIEW ↗</a>`).join('<br>');
   } catch (e) { mine.hidden = true; books.hidden = true; $('#claim').hidden = true; }
@@ -461,7 +468,8 @@ $('#btn-claim').onclick = async () => {
 };
 // the token and the founder wallet are public: link them, and offer the token address to wallets that show nothing on their own
 fetch(API + '/ledger').then(r => r.json()).then(j => {
-  token = { mint: j.mint, network: j.network || 'devnet', founder: j.founder_wallet };
+  token = { mint: j.mint, network: j.network || 'devnet', founder: j.founder_wallet, claims: j.claims || (j.mint ? 'open' : 'soon') };
+  document.body.classList.toggle('claims-soon', token.claims !== 'open');
   document.body.classList.toggle('mainnet', token.network === 'mainnet');
   const q = token.network === 'mainnet' ? '' : '?cluster=' + encodeURIComponent(token.network);
   if (token.founder) { const a = $('#lnk-founder'); a.href = 'https://explorer.solana.com/address/' + encodeURIComponent(token.founder) + '/tokens' + q; a.hidden = false; }

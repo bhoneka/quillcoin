@@ -14,7 +14,7 @@ This repository is the whole site: the pages, the database rules and the API. Th
 | `supabase/functions/api/index.ts` | The API. One function, all routes. |
 | `supabase/launch/` | One file, run once by hand before round 1 opens: it removes the test round. It refuses to run once a real round is open. |
 | `token/` | Scripts that created the QLL token on Solana's test network. |
-| `tools/` | Map rendering and the script that fingerprints a hide's recording. |
+| `tools/` | Map rendering, and `publish_hide.py`: it cuts the recording of a hide down to the run itself, removes the sound and everything stored inside the file, stores it, and commits its fingerprint. |
 
 The site is static and is served by GitHub Pages. Sign-in, the database and the API run on Supabase.
 
@@ -31,7 +31,8 @@ Base: `https://ovjeipprgkeygnlkraiu.supabase.co/functions/v1/api`
 | `POST /redeem {code, ign}` | signed-in finder | Spends the code: 1 QLL to the finder, 0.1 QLL to the founder. |
 | `POST /claim {wallet}` | signed-in finder | Sends the finder's whole site balance to their Solana wallet. Refuses addresses that are not wallets. |
 | `POST /settle` | signed-in finder | Looks up a transfer that was left open and settles it: arrived, or back on the site. |
-| `POST /hide`, `POST /video` | the hider tool | Commits a book's fingerprint, and the fingerprint of its recording. Refused once the round is open. |
+| `POST /hide` | the hider tool | Commits a book's fingerprint. Refused once the round is open, and once the round holds all of its books. |
+| `POST /video` | the hider | Commits the fingerprint of a hide's recording, and the address the recording is kept at. A committed fingerprint can never be replaced by another. |
 
 A code is never stored. It arrives at `/check` and `/redeem`, is hashed at once, and only the hash is looked up.
 
@@ -40,6 +41,8 @@ A code is never stored. It arrives at `/check` and `/redeem`, is hashed at once,
 - **A code is spent once.** `claim_coin` locks the book's row, so two people redeeming at the same moment cannot both win.
 - **Nothing joins an open round.** `/hide` refuses new books once a round has opened, and refuses real rounds from anywhere but 2b2t.org.
 - **The ring is fixed before the hunt.** Every round publishes how far from spawn its books are (`ring_min`, `ring_max`); once the round is open the database refuses to change it.
+- **So is the number of books.** Every round publishes how many books it holds (`planned`). The database refuses a book too many, and refuses to change the number once the round is open.
+- **A recording opens when its book is found.** Its fingerprint (`video_hash`) is public from the moment it is committed. Its address is kept in a table only the API can read, and is written onto the book in the same transaction as the find. It is kept back until then because a recording of a dungeon can give its place away: the pattern of a dungeon's floor is decided by the world's seed, and 2b2t's seed is known.
 - **The hider cannot redeem.** Accounts on the `blacklist` table are refused.
 - **The position of a chest is sealed.** The hider tool encrypts it (AES-256-GCM) under a key derived from the book's code. The site stores the sealed box and can only open it with the code, which it sees for the first time when the book is redeemed.
 - **The ledger only grows.** Updates, deletes and truncates are refused by triggers.

@@ -5,7 +5,7 @@ const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const short = (a, n = 4) => a.length > n * 2 + 1 ? a.slice(0, n) + '…' + a.slice(-n) : a;
 const q3 = n => (Math.round(Number(n) * 1000) / 1000).toFixed(3).replace(/0{1,2}$/, '');           // 1.0, 0.1, 0.125
 const when = s => String(s).replace('T', ' ').slice(0, 19);
-const RPC = { devnet: 'https://api.devnet.solana.com', testnet: 'https://api.testnet.solana.com', mainnet: 'https://api.mainnet-beta.solana.com' };
+const RPC = { devnet: 'https://api.devnet.solana.com', testnet: 'https://api.testnet.solana.com', mainnet: 'https://solana-rpc.publicnode.com' };   // a public endpoint that answers browsers; this site is not in between
 const cluster = n => n === 'mainnet' ? '' : '?cluster=' + encodeURIComponent(n);
 const SHOWN = 200;
 
@@ -55,7 +55,7 @@ async function load(){
   } catch (e) { $('#rows').innerHTML = '<div class="lrow"><span></span><span>THE LEDGER COULD NOT BE REACHED. TRY AGAIN IN A MINUTE.</span></div>'; $('#sent').innerHTML = ''; $('#t-note').textContent = ''; $('#c-head').textContent = ''; return; }
   $('#t-minted').textContent = q3(info.minted); $('#t-finders').textContent = q3(info.minted - info.founder); $('#t-founder').textContent = q3(info.founder);
   $('#t-wallets').textContent = q3(info.in_wallets); $('#t-site').textContent = q3(info.on_site);
-  $('#t-note').textContent = (info.network === 'mainnet' ? '' : 'TEST NETWORK: THESE COINS ARE WORTH NOTHING. ') + 'CREATED = MOVED TO WALLETS + STILL WAITING ON THE SITE' + (Number(info.in_flight) ? ' + ' + q3(info.in_flight) + ' ON THEIR WAY TO A WALLET RIGHT NOW.' : '.');
+  $('#t-note').textContent = (info.network === 'mainnet' ? '' : 'TEST NETWORK: THESE COINS ARE WORTH NOTHING. ') + (info.claims === 'soon' ? 'THE TOKEN DOES NOT EXIST YET: EVERY COIN IS STILL ON THE SITE. ' : '') + 'CREATED = MOVED TO WALLETS + STILL WAITING ON THE SITE' + (Number(info.in_flight) ? ' + ' + q3(info.in_flight) + ' ON THEIR WAY TO A WALLET RIGHT NOW.' : '.');
   $('#c-head').innerHTML = chain.length ? `${chain.length} LINES · NEWEST FINGERPRINT <span class="mono inl">${info.head}</span>` : 'NO LINES YET';
   $('#lnk-json').href = API + '/ledger';
   const n = info.network || 'devnet';
@@ -127,6 +127,7 @@ async function outside(n){
 }
 async function solana(){
   const t = info.transfers || [], n = info.network || 'devnet';
+  if (!info.mint) { say('#v-solana', 'THE QLL TOKEN DOES NOT EXIST YET, SO NO COIN HAS LEFT THIS SITE. ITS ADDRESS WILL BE PUBLISHED HERE BEFORE THE FIRST TRANSFER.'); return; }
   say('#v-solana', 'ASKING SOLANA…');
   const hashes = new Set(chain.map(r => r.hash));
   let ok = 0, wrong = [], unread = 0, anchored = 0, rewritten = 0;
