@@ -1,8 +1,18 @@
 # quillcoin.gg
 
-Signed books with one-time codes are hidden in 2b2t dungeon chests. Whoever types a book's code on the site first owns one QuillCoin (QLL).
+Signed books with one-time codes are hidden in 2b2t dungeon chests. Whoever types a book's code on the site first owns that book's coin.
 This repository is the whole site: the pages, the database rules and the API. The tool that hides the books is in
 [quillcoin-hider](https://github.com/bhoneka/quillcoin-hider).
+
+## No token
+
+QuillCoin runs without a token. A coin is a line in the site's public ledger with its finder's name on it: it cannot be bought, sold or sent anywhere,
+nobody gets a share of a find, and nothing is for sale.
+
+The repository also holds the code for a token on Solana (`token/`, the `/claim` and `/settle` routes, the transfer parts of the ledger page).
+All of it is **switched off** by one row in the database (`switches`, read through `token_on()`), which the site's own key can read and cannot change.
+While it is off a find writes one line (1 coin for the finder), `begin_claim` refuses, `/claim`, `/settle` and `/health` answer "switched off",
+`GET /ledger` says `"claims": "off"`, and the pages show nothing about tokens or wallets. It stays in the repository so that everything the site can do can be read.
 
 ## What is where
 

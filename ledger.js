@@ -15,10 +15,13 @@ const okRow = r => !!r && Number.isSafeInteger(r.id) && typeof r.at === 'string'
   && whole(r.coin_round) && whole(r.coin_number) && (r.who === 'founder' || r.who === 'finder') && (r.prev === null || r.prev === undefined || HEX.test(r.prev)) && HEX.test(String(r.hash));
 const okTransfer = c => !!c && typeof c.at === 'string' && AT.test(c.at) && SIG.test(String(c.tx)) && typeof c.wallet === 'string' && c.wallet.length < 60 && NETS.includes(c.network)
   && Number.isFinite(c.to_finder) && Number.isFinite(c.to_founder) && (c.ledger_head === null || c.ledger_head === undefined || HEX.test(c.ledger_head));
-const okInfo = i => (i.head === null || HEX.test(String(i.head))) && (i.mint === null || ADDR.test(String(i.mint))) && (i.founder_wallet === null || ADDR.test(String(i.founder_wallet))) && NETS.includes(i.network)
+const okInfo = i => (i.head === null || HEX.test(String(i.head))) && (i.mint === null || ADDR.test(String(i.mint))) && (i.founder_wallet === null || ADDR.test(String(i.founder_wallet))) && (i.claims === 'off' ? i.network === null || NETS.includes(i.network) : NETS.includes(i.network))
   && ['minted', 'founder', 'on_site', 'in_wallets'].every(k => Number.isFinite(i[k])) && Array.isArray(i.chain) && Array.isArray(i.transfers) && i.transfers.every(okTransfer);
 
 let info = null, chain = [], shown = SHOWN, marks = new Map(), anchors = new Map();
+// While the token part is switched off, a coin is a line in this ledger and nothing else, and the page says nothing about tokens or wallets.
+const tokenOn = () => !!info && info.claims !== 'off';
+const amt = n => tokenOn() || !Number.isInteger(Number(n)) ? q3(n) : String(Number(n));
 
 // exactly the text that is hashed for a line
 const canon = r => [r.prev ?? '', r.id, r.at, r.delta, r.reason, r.coin_round ?? '', r.coin_number ?? '', r.who].join('|');
@@ -38,11 +41,11 @@ const what = r => (WHAT[r.reason] ? WHAT[r.reason](r) : esc(r.reason.toUpperCase
 
 function renderRows(){
   const rows = [...chain].reverse().slice(0, shown);
-  $('#rows').innerHTML = '<div class="lrow hd"><span>#</span><span class="tm">TIME · UTC</span><span>WHAT HAPPENED</span><span class="amt">QLL</span><span class="hx">FINGERPRINT</span><span></span></div>' +
+  $('#rows').innerHTML = '<div class="lrow hd"><span>#</span><span class="tm">TIME · UTC</span><span>WHAT HAPPENED</span><span class="amt">' + (tokenOn() ? 'QLL' : 'COINS') + '</span><span class="hx">FINGERPRINT</span><span></span></div>' +
     (rows.map(r => {
       const m = marks.get(r.id), a = anchors.get(r.hash);
       return `<div class="lrow" title="${esc(canon(r))}"><span>${r.id}</span><span class="tm">${when(r.at)}</span><span class="what">${what(r)}<span class="tm2">${when(r.at)} UTC · <span class="addr">${short(r.hash, 6)}</span></span>${a ? ` <a class="anch" href="${a}" target="_blank" rel="noopener" title="this fingerprint is written into a Solana transaction">⚓</a>` : ''}</span>` +
-        `<span class="amt ${Number(r.delta) > 0 ? 'plus' : 'minus'}">${Number(r.delta) > 0 ? '+' : ''}${q3(r.delta)}</span><span class="hx">${short(r.hash, 8)}</span><span class="${m === true ? 'ok' : m === false ? 'no' : ''}">${m === true ? '✓' : m === false ? '✕' : ''}</span></div>`;
+        `<span class="amt ${Number(r.delta) > 0 ? 'plus' : 'minus'}">${Number(r.delta) > 0 ? '+' : ''}${amt(r.delta)}</span><span class="hx">${short(r.hash, 8)}</span><span class="${m === true ? 'ok' : m === false ? 'no' : ''}">${m === true ? '✓' : m === false ? '✕' : ''}</span></div>`;
     }).join('') || '<div class="lrow"><span></span><span>NOTHING HAS BEEN FOUND YET</span></div>');
   $('#btn-more').hidden = chain.length <= shown;
 }
@@ -64,9 +67,11 @@ async function load(){
     while (page.more) { page = await (await fetch(API + '/ledger?after=' + chain[chain.length - 1].id, { cache: 'no-store' })).json(); if (!page.ok) throw new Error(page.message); if (!Array.isArray(page.chain) || !page.chain.length) throw new Error('damaged'); chain = chain.concat(page.chain); }
     if (!chain.every(okRow)) throw new Error('damaged');
   } catch (e) { $('#rows').innerHTML = '<div class="lrow"><span></span><span>' + (e && e.message === 'damaged' ? 'WHAT ARRIVED DOES NOT LOOK LIKE THE LEDGER, SO NONE OF IT IS SHOWN. TRY AGAIN IN A MINUTE, AND IF IT STAYS LIKE THIS, TRUST NOTHING HERE.' : 'THE LEDGER COULD NOT BE REACHED. TRY AGAIN IN A MINUTE.') + '</span></div>'; $('#sent').innerHTML = ''; $('#t-note').textContent = ''; $('#c-head').textContent = ''; chain = []; info = null; return; }
-  $('#t-minted').textContent = q3(info.minted); $('#t-finders').textContent = q3(info.minted - info.founder); $('#t-founder').textContent = q3(info.founder);
+  document.body.classList.toggle('notoken', !tokenOn());
+  $('#t-minted').textContent = amt(info.minted); $('#t-finders').textContent = q3(info.minted - info.founder); $('#t-founder').textContent = q3(info.founder);
   $('#t-wallets').textContent = q3(info.in_wallets); $('#t-site').textContent = q3(info.on_site);
-  $('#t-note').textContent = (info.network === 'mainnet' ? '' : 'TEST NETWORK: THESE COINS ARE WORTH NOTHING. ') + (info.claims === 'soon' ? 'THE TOKEN DOES NOT EXIST YET: EVERY COIN IS STILL ON THE SITE. ' : '') + 'CREATED = MOVED TO WALLETS + STILL WAITING ON THE SITE' + (Number(info.in_flight) ? ' + ' + q3(info.in_flight) + ' ON THEIR WAY TO A WALLET RIGHT NOW.' : '.');
+  if (!tokenOn()) $('#t-note').textContent = 'ONE BOOK FOUND, ONE COIN. NOTHING ELSE CREATES ONE.';
+  else $('#t-note').textContent = (info.network === 'mainnet' ? '' : 'TEST NETWORK: THESE COINS ARE WORTH NOTHING. ') + (info.claims === 'soon' ? 'THE TOKEN DOES NOT EXIST YET: EVERY COIN IS STILL ON THE SITE. ' : '') + 'CREATED = MOVED TO WALLETS + STILL WAITING ON THE SITE' + (Number(info.in_flight) ? ' + ' + q3(info.in_flight) + ' ON THEIR WAY TO A WALLET RIGHT NOW.' : '.');
   $('#c-head').innerHTML = chain.length ? `${chain.length} LINES · NEWEST FINGERPRINT <span class="mono inl">${info.head}</span>` : 'NO LINES YET';
   $('#lnk-json').href = API + '/ledger';
   const n = info.network || 'devnet';
@@ -84,9 +89,9 @@ async function verify(){
   if (!chain.length) { say('#v-chain', 'THERE IS NOTHING TO CHECK YET.'); return true; }
   if (!(window.crypto && crypto.subtle)) { say('#v-chain', 'THIS BROWSER CANNOT HASH HERE. OPEN THE PAGE OVER HTTPS.', 'no'); return false; }
   say('#v-chain', 'CHECKING…'); marks.clear();
-  let bad = [], prev = null, minted = 0, founder = 0, total = 0;
+  let bad = [], prev = null, minted = 0, founder = 0, total = 0, at = 0;
   for (const r of chain) {
-    const good = (r.prev ?? null) === prev && await sha256(canon(r)) === r.hash;
+    const good = r.id === ++at && (r.prev ?? null) === prev && await sha256(canon(r)) === r.hash;      // its number, the line before it, its own fingerprint
     marks.set(r.id, good); if (!good) bad.push(r.id);
     prev = r.hash;
     const d = Math.round(Number(r.delta) * 1000);
@@ -98,11 +103,14 @@ async function verify(){
   const headOk = prev === info.head;
   // every find must come with exactly its tenth
   const finds = chain.filter(r => r.reason === 'find'), fees = new Map(chain.filter(r => r.reason === 'founder-fee').map(r => [r.coin_round + '/' + r.coin_number, r]));
-  const lonely = finds.filter(r => { const f = fees.get(r.coin_round + '/' + r.coin_number); return !f || Math.round(Number(f.delta) * 1000) * 10 !== Math.round(Number(r.delta) * 1000); });
+  // with the token part on, every find comes with exactly its tenth; with it off, a find comes alone and nobody else gets anything
+  const lonely = tokenOn() ? finds.filter(r => { const f = fees.get(r.coin_round + '/' + r.coin_number); return !f || Math.round(Number(f.delta) * 1000) * 10 !== Math.round(Number(r.delta) * 1000); })
+    : chain.filter(r => r.reason !== 'find');
   if (bad.length) say('#v-chain', `${bad.length} ${bad.length === 1 ? 'LINE DOES' : 'LINES DO'} NOT MATCH: #${bad.slice(0, 8).join(', #')}. THE LEDGER HAS BEEN TAMPERED WITH, OR IT ARRIVED DAMAGED.`, 'no');
   else if (!headOk || !totals) say('#v-chain', `ALL ${chain.length} LINES LINK UP, BUT ${!headOk ? 'THE NEWEST FINGERPRINT' : 'THE COUNT ABOVE'} DOES NOT MATCH WHAT THE LINES SAY.`, 'no');
   else say('#v-chain', `ALL ${chain.length} LINES CHECK OUT. EVERY ONE POINTS AT THE ONE BEFORE IT, EVERY FINGERPRINT IS RIGHT, AND THE COUNT ABOVE IS EXACTLY WHAT THE LINES ADD UP TO.` +
-    (lonely.length ? ` <span class="no">BUT ${lonely.length} ${lonely.length === 1 ? 'FIND HAS' : 'FINDS HAVE'} NO MATCHING TENTH.</span>` : ` ${finds.length} ${finds.length === 1 ? 'FIND' : 'FINDS'}, EACH WITH EXACTLY ITS TENTH.`), lonely.length ? '' : 'ok');
+    (!tokenOn() ? (lonely.length ? ` <span class="no">BUT ${lonely.length} ${lonely.length === 1 ? 'LINE IS' : 'LINES ARE'} NOT A FIND.</span>` : ` ${finds.length} ${finds.length === 1 ? 'FIND' : 'FINDS'}, ONE COIN EACH, AND NOTHING FOR ANYBODY ELSE.`)
+      : lonely.length ? ` <span class="no">BUT ${lonely.length} ${lonely.length === 1 ? 'FIND HAS' : 'FINDS HAVE'} NO MATCHING TENTH.</span>` : ` ${finds.length} ${finds.length === 1 ? 'FIND' : 'FINDS'}, EACH WITH EXACTLY ITS TENTH.`), lonely.length ? '' : 'ok');
   return !bad.length && headOk && totals;
 }
 
@@ -139,6 +147,7 @@ async function outside(n){
 }
 async function solana(){
   if (!info) { say('#v-solana', 'THE LEDGER HAS NOT ARRIVED, SO THERE IS NOTHING TO COMPARE.', 'no'); return; }
+  if (!tokenOn()) return;
   const t = info.transfers || [], n = info.network || 'devnet';
   if (!info.mint) { say('#v-solana', 'THE QLL TOKEN DOES NOT EXIST YET, SO NO COIN HAS LEFT THIS SITE. ITS ADDRESS WILL BE PUBLISHED HERE BEFORE THE FIRST TRANSFER.'); return; }
   say('#v-solana', 'ASKING SOLANA…');

@@ -23,20 +23,20 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="description" content="Signed books hidden in 2b2t dungeon chests. Find one. Redeem the code. Own a coin.">
 <link rel="stylesheet" href="vendor/leaflet-1.9.4.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H">
-<link rel="stylesheet" href="site.css?v=22">
+<link rel="stylesheet" href="site.css?v=23">
 </head>
-<body class="claims-soon">
+<body class="notoken claims-soon">
 <div class="bar">
   <a href="#top" class="brand"><img class="logo" src="favicon.svg" alt="">QUILLCOIN</a>
   <div class="r"><a href="#redeem" class="opt">REDEEM↗</a><a href="#coins" class="opt">ROUNDS</a><a href="ledger.html" class="opt">LEDGER</a><a href="#guide">GUIDE</a><a href="#map" id="nav-map">MAP</a><a href="#" id="nav-account" class="acct">SIGN IN</a></div>
 </div>
 <div id="account" class="pop" hidden>
   <div class="pop-who"><img id="acc-pfp" class="pfp" alt=""><div><b id="acc-name"></b><span id="acc-ign"></span></div></div>
-  <div class="pop-bal"><img src="favicon.svg" alt=""><b id="acc-total">0.0</b><span>QLL</span></div>
+  <div class="pop-bal"><img src="favicon.svg" alt=""><b id="acc-total">0</b><span id="acc-unit">COINS</span></div>
   <div class="pop-split" id="acc-split"></div>
-  <div class="pop-split" id="acc-wallet" hidden></div>
+  <div class="pop-split token-only" id="acc-wallet" hidden></div>
   <div class="pop-books" id="acc-books"></div>
-  <div class="pop-actions"><button class="ghost" id="acc-claim">CLAIM TO WALLET</button><button class="ghost" id="acc-out">SIGN OUT</button></div>
+  <div class="pop-actions"><button class="ghost token-only" id="acc-claim">CLAIM TO WALLET</button><button class="ghost" id="acc-out">SIGN OUT</button></div>
 </div>
 <div id="coin" class="modal" hidden><div class="sheet" id="coin-sheet"></div></div>
 <div id="fullmap" hidden>
@@ -68,7 +68,7 @@
         <div class="who">THE CODE IS ON PAGE THREE OF THE BOOK. FIRST TIME HERE? <a href="#g-redeem">HOW REDEEMING WORKS ↓</a></div>
         <div class="who" id="mine" hidden></div>
         <div class="grid mine" id="mine-books" hidden></div>
-        <div class="claim" id="claim" hidden>
+        <div class="claim token-only" id="claim" hidden>
           <h2>MOVE YOUR COINS TO A WALLET</h2>
           <div class="who">OPTIONAL, AND THERE IS NO HURRY: UNTIL YOU DO, YOUR COINS WAIT ON YOUR DISCORD ACCOUNT. <a href="#g-wallet">WHAT IS A WALLET? ↓</a></div>
           <div class="who soon-only">NOT OPEN YET. COINS CAN MOVE TO A WALLET ONCE THE QLL TOKEN EXISTS ON SOLANA; ITS ADDRESS WILL BE PUBLISHED HERE FIRST. UNTIL THEN THEY WAIT ON YOUR DISCORD ACCOUNT, AND NOTHING IS LOST BY WAITING.</div>
@@ -115,9 +115,10 @@
     <h2>THE GUIDE · EVERYTHING, EXPLAINED</h2>
 
     <details class="guide" id="g-what"><summary><span class="k"></span><span>What is QuillCoin?</span><span class="pm">+</span></summary><div class="gb">
-      <p>A treasure hunt on 2b2t, the oldest anarchy server in Minecraft. Signed books are hidden in dungeon chests across the overworld. Every book carries a code that works exactly once. Whoever types that code here first owns one QuillCoin, written <b>QLL</b>.</p>
-      <p><b>There is nothing to buy.</b> No presale, no shop, no starter pack. The only way a coin comes into existence is somebody finding a book.</p>
-      <p>It is a game. Nobody here promises that a coin is, or ever will be, worth anything. If people decide to trade them, that is theirs to decide.</p>
+      <p>A treasure hunt on 2b2t, the oldest anarchy server in Minecraft. Signed books are hidden in dungeon chests across the overworld. Every book carries a code that works exactly once. Whoever types that code here first owns one QuillCoin<span class="token-only">, written <b>QLL</b></span>.</p>
+      <p><b>There is nothing to buy.</b> <span class="token-only">No presale, no shop</span><span class="notoken-only">No shop</span>, no starter pack. The only way a coin comes into existence is somebody finding a book.</p>
+      <p class="token-only">It is a game. Nobody here promises that a coin is, or ever will be, worth anything. If people decide to trade them, that is theirs to decide.</p>
+      <p class="notoken-only">It is a game, made for the fun of it. A coin is a point next to your name: it cannot be bought, sold or sent anywhere.</p>
     </div></details>
 
     <details class="guide" id="g-where"><summary><span class="k"></span><span>Where are the books?</span><span class="pm">+</span></summary><div class="gb">
@@ -157,7 +158,8 @@
         <li><b>Enter your Minecraft name</b> and press Enter. It is the name shown on the coin's card.</li>
         <li><b>Press REDEEM.</b> If something is still missing, it lights up red.</li>
       </ol>
-      <p>Then the book's card turns gold, the chest it sat in appears on the map, <b>1 QLL</b> lands on your account, and <b>0.1 QLL</b> goes to the founder. It costs you nothing, and you need no wallet for any of it.</p>
+      <p class="token-only">Then the book's card turns gold, the chest it sat in appears on the map, <b>1 QLL</b> lands on your account, and <b>0.1 QLL</b> goes to the founder. It costs you nothing, and you need no wallet for any of it.</p>
+      <p class="notoken-only">Then the book's card turns gold, the chest it sat in appears on the map, and the coin is on your account. It costs you nothing.</p>
       <p>If somebody typed the same code before you, the site tells you who and when. First redemption wins; there is no second place.</p>
     </div></details>
 
@@ -169,15 +171,22 @@
 
     <details class="guide" id="g-get"><summary><span class="k"></span><span>What do I actually get?</span><span class="pm">+</span></summary><div class="gb">
       <ul>
-        <li><b>1 QLL</b> on your account, the moment you redeem.</li>
+        <li class="token-only"><b>1 QLL</b> on your account, the moment you redeem.</li>
+        <li class="notoken-only"><b>One coin</b> on your account, the moment you redeem.</li>
         <li><b>Your name on that coin's card</b>, on the map and in the ledger, for good.</li>
         <li><b>The book.</b> It is spent, but it is still yours: the only copy of that edition, with a public record of who cashed it.</li>
       </ul>
-      <p>QLL is a token on <b>Solana</b>, a public network that keeps track of who owns what without anybody being in charge of it. You can leave your coins on this site, or move them to a wallet of your own.</p>
-      <p class="soon-only"><b>The token does not exist yet.</b> Until it is created, every coin is a line in this site's public ledger, under its finder's name. The token's address will be published here and in the ledger before the first coin can move.</p>
+      <p class="token-only">QLL is a token on <b>Solana</b>, a public network that keeps track of who owns what without anybody being in charge of it. You can leave your coins on this site, or move them to a wallet of your own.</p>
+      <p class="soon-only token-only"><b>The token does not exist yet.</b> Until it is created, every coin is a line in this site's public ledger, under its finder's name. The token's address will be published here and in the ledger before the first coin can move.</p>
     </div></details>
 
-    <details class="guide" id="g-wallet"><summary><span class="k"></span><span>Moving coins to a wallet</span><span class="pm">+</span></summary><div class="gb">
+    <details class="guide notoken-only" id="g-crypto"><summary><span class="k"></span><span>Is this crypto?</span><span class="pm">+</span></summary><div class="gb">
+      <p><b>No.</b> There is no token in this hunt, nothing to buy, and nobody selling anything. A coin is one line in this site's <a href="ledger.html">public ledger</a> with your name on it. It cannot be bought, sold or sent anywhere.</p>
+      <p><b>Tokens called QuillCoin exist on Solana.</b> They are not part of the hunt, and a coin from here cannot be turned into one. Do not buy them.</p>
+      <p>If any of this ever changes, it will be said here first, before anything happens.</p>
+    </div></details>
+
+    <details class="guide token-only" id="g-wallet"><summary><span class="k"></span><span>Moving coins to a wallet</span><span class="pm">+</span></summary><div class="gb">
       <p class="soon-only"><b>Not open yet.</b> Moving coins to a wallet starts once the token exists on Solana. Everything below is how it will work.</p>
       <p>A <b>wallet</b> is an app that holds tokens under keys only you have. <b>Phantom</b>, <b>Solflare</b> and <b>Backpack</b> are free and all work. The app gives you an <b>address</b>: a long string of letters and digits, safe to share, like an account number.</p>
       <ol>
@@ -193,7 +202,7 @@
       <p><b>The words that open your wallet</b> (its recovery phrase) are yours alone. Nobody from QuillCoin will ever ask for them. Anybody who does is robbing you.</p>
     </div></details>
 
-    <details class="guide open-only" id="g-fake"><summary><span class="k"></span><span>Which QuillCoin is the real one?</span><span class="pm">+</span></summary><div class="gb">
+    <details class="guide open-only token-only" id="g-fake"><summary><span class="k"></span><span>Which QuillCoin is the real one?</span><span class="pm">+</span></summary><div class="gb">
       <p><b>A token's address is its only real name.</b> On Solana anybody can make a token, call it QuillCoin, give it the same ticker and even point it at this site. Copies exist already. They have nothing to do with the books.</p>
       <p>The real one is this address, and only this one:</p>
       <p><b class="the-mint" style="text-transform:none;word-break:break-all"></b></p>
@@ -204,12 +213,12 @@
       </ul>
     </div></details>
 
-    <details class="guide testnet-only" id="g-test"><summary><span class="k"></span><span>Right now: the test round and the test network</span><span class="pm">+</span></summary><div class="gb">
+    <details class="guide testnet-only token-only" id="g-test"><summary><span class="k"></span><span>Right now: the test round and the test network</span><span class="pm">+</span></summary><div class="gb">
       <p>Before the first real round, the whole machine is being tried in public. <b>Round 0</b> is that test: its books, its coins and the token they arrive as live on Solana's test network and are <b>worth nothing</b>. They will not carry over.</p>
       <p>The real token's address will be published on this page and in the ledger before any real coin can be moved to a wallet.</p>
     </div></details>
 
-    <details class="guide" id="g-fee"><summary><span class="k"></span><span>The founder's tenth</span><span class="pm">+</span></summary><div class="gb">
+    <details class="guide token-only" id="g-fee"><summary><span class="k"></span><span>The founder's tenth</span><span class="pm">+</span></summary><div class="gb">
       <p>Every find creates <b>1 QLL for the finder</b> and <b>0.1 QLL for the founder</b>. That tenth is the founder's only income. It was published before the first coin existed, the founder's wallet is public, and both amounts are created in the same transaction, so anyone can watch them arrive together.</p>
       <p>The founder sells nothing and holds no coins from before the hunt. Coins exist only because books were found.</p>
       <p><b>You do not have to take that on trust.</b> The <a href="ledger.html">ledger page</a> counts the coins that exist on Solana and compares them with the finds written in the ledger. If a single coin were ever created without a find, the two numbers would stop matching, in public.</p>
@@ -244,8 +253,9 @@
     </div></details>
 
     <details class="guide" id="g-ledger"><summary><span class="k"></span><span>The ledger</span><span class="pm">+</span></summary><div class="gb">
-      <p>Every coin that was ever created, and every move to a wallet, is one line in a <a href="ledger.html">public ledger</a>. Lines can only be added. Each line carries the fingerprint of the line before it, so changing or removing one would break every line after it.</p>
-      <p>Whenever coins are sent to a wallet, the newest fingerprint is written into that Solana transaction, where nobody can edit it, the founder included. The ledger page checks the whole chain inside your own browser, and reads those transactions straight from Solana.</p>
+      <p>Every coin that was ever created<span class="token-only">, and every move to a wallet,</span> is one line in a <a href="ledger.html">public ledger</a>. Lines can only be added. Each line carries the fingerprint of the line before it, so changing or removing one would break every line after it.</p>
+      <p class="notoken-only">The ledger page checks the whole chain inside your own browser, and lets your browser remember the newest line, so that you can tell if anything before it is ever changed.</p>
+      <p class="token-only">Whenever coins are sent to a wallet, the newest fingerprint is written into that Solana transaction, where nobody can edit it, the founder included. The ledger page checks the whole chain inside your own browser, and reads those transactions straight from Solana.</p>
     </div></details>
 
     <details class="guide" id="g-trade"><summary><span class="k"></span><span>Trading, stealing and losing books</span><span class="pm">+</span></summary><div class="gb">
@@ -253,7 +263,8 @@
       <p><b>Books can be copied.</b> Minecraft lets anyone copy a written book, and a copy carries the same code. If you trade for a book that has not been redeemed, the other side may have kept the code. Check it on this page first, and redeem the moment it is in your hands.</p>
       <p><b>Never show page three.</b> Not in a screenshot, not on a stream, not in a video. Anyone who can read the code can redeem it.</p>
       <p><b>Burned coins stay burned.</b> A book destroyed with its chest never becomes a coin. Some of the grey books on this page may already be gone. That is the hunt.</p>
-      <p><b>Your Discord account is the key</b> to coins that are still on the site. Moving them to a wallet makes them independent of it.</p>
+      <p class="token-only"><b>Your Discord account is the key</b> to coins that are still on the site. Moving them to a wallet makes them independent of it.</p>
+      <p class="notoken-only"><b>Your Discord account is the key</b> to your coins. Sign in with the same account, on any device, and they are there.</p>
     </div></details>
 
     <details class="guide" id="g-rounds"><summary><span class="k"></span><span>Rounds and coin numbers</span><span class="pm">+</span></summary><div class="gb">
@@ -267,8 +278,9 @@
     <h2>RULES</h2>
     <p><b>No hints.</b> The tool that hides the books never shows the hider the code or the coordinates: it picks a random point, flies there blind, and the first dungeon it sees is the one. The hider's own accounts can never redeem.</p>
     <p><b>The list is locked before the hunt.</b> The moment a book is hidden, its fingerprint is published here with the time. When a round opens, its list closes for good: nobody can add a book afterwards, or swap one.</p>
-    <p><b>Coins only exist when found.</b> Each redemption creates 1 for the finder and 0.1 for a public founder wallet. That fee is the founder's only income, visible from the first coin. No presale. Nothing is sold by the founder. No price is promised: this is a game reward; if people trade it, that's theirs.</p>
-    <p><b>Burned coins stay burned.</b> A book destroyed in a chest never mints. Greyed entries might be gone. That's the hunt.</p>
+    <p class="token-only"><b>Coins only exist when found.</b> Each redemption creates 1 for the finder and 0.1 for a public founder wallet. That fee is the founder's only income, visible from the first coin. No presale. Nothing is sold by the founder. No price is promised: this is a game reward; if people trade it, that's theirs.</p>
+    <p class="notoken-only"><b>Coins only exist when found.</b> One book, one coin, for whoever redeems it first. Nothing is sold, by anybody. No crypto. It is a game.</p>
+    <p><b>Burned coins stay burned.</b> A book destroyed in a chest never becomes a coin. Greyed entries might be gone. That's the hunt.</p>
   </section>
 
   <footer>
@@ -283,6 +295,6 @@
 </main>
 <script src="vendor/supabase-js-2.117.2.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok"></script>
 <script src="vendor/leaflet-1.9.4.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"></script>
-<script src="site.js?v=22"></script>
+<script src="site.js?v=23"></script>
 </body>
 </html>

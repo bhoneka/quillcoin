@@ -62,6 +62,17 @@ async function openLoc(code: string, b64: string): Promise<{ x: number; y: numbe
   } catch { return null; }
 }
 const STORE = SB_URL + "/storage/v1/object/public/hides/";
+/**
+ * Whether the token part is switched on at all: one row in the database, which the site's own key can read and cannot change.
+ * While it is off a coin is a line in the ledger and nothing else: no founder's tenth, nothing moves to a wallet, and none of it is mentioned.
+ * If the switch cannot be read, it counts as off.
+ */
+async function tokenOn(): Promise<boolean> {
+  const { data, error } = await admin.rpc("token_on");
+  if (error) { console.error("switch", error.message); return false; }
+  return data === true;
+}
+const OFF = () => json(503, { ok: false, off: true, message: "this is switched off" });
 function sameSecret(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let r = 0;
@@ -87,11 +98,9 @@ Deno.serve(async (req) => {
     if (req.method === "POST" && path === "/claim") return await claim(req);
     if (req.method === "POST" && path === "/settle") return await settle(req);
     if (path === "/") {
-      return json(200, {
-        ok: true,
-        service: "quillcoin api",
-        endpoints: ["GET /board", "GET /board?round=N", "GET /ledger", "GET /ledger?after=ID", "GET /health", "POST /check {code}", "POST /redeem {code, ign} + Bearer <user token>", "POST /claim {wallet} + Bearer <user token>", "POST /settle + Bearer <user token>", "POST /hide (hider tool only)", "POST /video {round, number, sha256, url} (hider only)"],
-      });
+      const all = ["GET /board", "GET /board?round=N", "GET /ledger", "GET /ledger?after=ID", "GET /health", "POST /check {code}", "POST /redeem {code, ign} + Bearer <user token>", "POST /claim {wallet} + Bearer <user token>", "POST /settle + Bearer <user token>", "POST /hide (hider tool only)", "POST /video {round, number, sha256, url} (hider only)"];
+      const on = await tokenOn();
+      return json(200, { ok: true, service: "quillcoin api", endpoints: on ? all : all.filter((e) => !/\/(claim|settle|health)/.test(e)) });
     }
     return json(404, { ok: false, message: "no such endpoint" });
   } catch (e) {
@@ -133,16 +142,17 @@ async function ledger(u: URL) {
   const tot = (Array.isArray(t) ? t[0] : t) ?? {};
   const page = { ok: true, rows: Number(tot.total_rows ?? 0), head: tot.head ?? null, after, more: chain.length === PAGE, chain };
   if (after > 0) return json(200, page);
+  const on = await tokenOn();
   // coins come into existence only through a find (1 to the finder) and its founder fee (0.1); a claim moves them to a wallet, it creates nothing
   const { data: sent } = await admin.from("claims").select("at, amount, founder_amount, wallet, tx, network, user_id, ledger_head").eq("status", "sent").order("at", { ascending: false }).limit(PAGE);
   const transfers = (sent ?? []).map((c) => ({ at: c.at, to_finder: Number(c.amount), to_founder: Number(c.founder_amount), wallet: c.user_id ? c.wallet : "founder wallet", tx: c.tx, network: c.network, ledger_head: c.ledger_head }));
   return json(200, {
     ...page,
     minted: Number(tot.minted ?? 0), founder: Number(tot.founder ?? 0), on_site: Number(tot.on_site ?? 0), in_wallets: Number(tot.in_wallets ?? 0), in_flight: Number(tot.in_flight ?? 0),
-    founder_wallet: Deno.env.get("QLL_FOUNDER") ?? null, mint: Deno.env.get("QLL_MINT") ?? null, network: Deno.env.get("QLL_NETWORK") ?? "devnet",
-    claims: Deno.env.get("QLL_MINT") && Deno.env.get("QLL_AUTHORITY") && Deno.env.get("QLL_FOUNDER") ? "open" : "soon",      // moving coins to a wallet needs the token to exist
+    founder_wallet: on ? Deno.env.get("QLL_FOUNDER") ?? null : null, mint: on ? Deno.env.get("QLL_MINT") ?? null : null, network: on ? Deno.env.get("QLL_NETWORK") ?? "devnet" : null,
+    claims: !on ? "off" : Deno.env.get("QLL_MINT") && Deno.env.get("QLL_AUTHORITY") && Deno.env.get("QLL_FOUNDER") ? "open" : "soon",      // moving coins to a wallet needs the token to exist, and to be switched on
     hashing: "sha256( prev | id | at | delta | reason | coin_round | coin_number | who ), empty for a missing value, joined with |",
-    anchor: "every claim writes quillcoin-ledger:<newest hash> into its own Solana transaction",
+    ...(on ? { anchor: "every claim writes quillcoin-ledger:<newest hash> into its own Solana transaction" } : {}),
     transfers_total: Number(tot.transfers ?? 0), transfers,
   });
 }
@@ -278,7 +288,8 @@ async function redeem(req: Request) {
     if (at) await admin.from("coins").update({ found_x: at.x, found_y: at.y, found_z: at.z }).eq("hash", hash);
   }
   announce(row.round, row.number).catch((e) => console.error("webhook", e));
-  return json(200, { ok: true, round: row.round, number: row.number, message: `R${row.round} coin ${row.number} is yours. 1 QLL minted to you, 0.1 to the founder wallet` });
+  const said = (await tokenOn()) ? " 1 QLL minted to you, 0.1 to the founder wallet" : "";
+  return json(200, { ok: true, round: row.round, number: row.number, message: `R${row.round} coin ${row.number} is yours.${said}` });
 }
 
 async function announce(round: number, number: number) {
@@ -320,6 +331,7 @@ async function signedIn(req: Request) {
 
 /** Whether moving coins to a wallet can work right now: the nodes answer, the token is there, the key may create it, and there is money for the network's fees. Public facts only. */
 async function health() {
+  if (!(await tokenOn())) return json(200, { ok: true, claims: "off", message: "this is switched off" });
   const MINT = Deno.env.get("QLL_MINT") ?? "", AUTHORITY = Deno.env.get("QLL_AUTHORITY") ?? "";
   if (!MINT || !AUTHORITY) return json(200, { ok: true, claims: "soon", message: "the token does not exist yet" });
   try {
@@ -389,6 +401,7 @@ async function settlePending(userId: string, all: any[], network: string): Promi
 }
 
 async function settle(req: Request) {
+  if (!(await tokenOn())) return OFF();
   const user = await signedIn(req);
   if (!user) return json(401, { ok: false, need: "login", message: "sign in first" });
   const { all, NETWORK } = await chain();
@@ -398,6 +411,7 @@ async function settle(req: Request) {
 
 /** Moves a finder's whole site balance to their wallet as QLL tokens. QLL_NETWORK / QLL_RPC / QLL_RPC2 / QLL_MINT / QLL_AUTHORITY / QLL_FOUNDER are function secrets. */
 async function claim(req: Request) {
+  if (!(await tokenOn())) return OFF();
   const user = await signedIn(req);
   if (!user) return json(401, { ok: false, need: "login", message: "sign in first" });
   const MINT = Deno.env.get("QLL_MINT") ?? "", AUTHORITY = Deno.env.get("QLL_AUTHORITY") ?? "", FOUNDER = Deno.env.get("QLL_FOUNDER") ?? "";
@@ -431,6 +445,7 @@ async function claim(req: Request) {
   const { data, error } = await admin.rpc("begin_claim", { p_user: user.id, p_wallet: wallet });
   if (error) {
     const m = error.message ?? "";
+    if (m === "off") return OFF();
     if (m.includes("nothing")) return json(409, { ok: false, message: "nothing to claim - your site balance is zero" });
     if (m.includes("waiting")) return busy();
     if (m.includes("slow")) return json(429, { ok: false, message: "that is a lot of transfers for one hour - nothing was sent, try again later" });

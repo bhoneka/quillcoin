@@ -47,7 +47,11 @@ function roundIn(r){
 }
 
 // ------------------------------------------------------------------ rounds and their books
-let rounds = [], view = 'cards', openSet = new Set(), token = { mint: null, network: 'mainnet', founder: null, claims: 'soon' }, myBal = 0;   // transfers stay shut until the server says they are open
+let rounds = [], view = 'cards', openSet = new Set(), token = { mint: null, network: 'mainnet', founder: null, claims: 'off' }, myBal = 0;   // no token, no wallet, no transfer, until the server says otherwise
+// While the token part is switched off, a coin is a point in the ledger and nothing else, and the page says nothing about tokens or wallets.
+const tokenOn = () => token.claims !== 'off';
+const count = n => { const v = Math.round(Number(n) * 1000) / 1000; return tokenOn() ? v.toFixed(1) : String(Number.isInteger(v) ? v : v.toFixed(1)); };
+const unit = n => tokenOn() ? 'QLL' : Math.round(Number(n) * 1000) === 1000 ? 'COIN' : 'COINS';
 try { view = localStorage.getItem('qll-view') === 'list' ? 'list' : 'cards'; } catch (e) {}
 const allCoins = () => rounds.flatMap(r => r.coins);
 const coinOf = (r, n) => allCoins().find(c => c.round === r && c.number === n);
@@ -273,15 +277,15 @@ function openCoin(r, n, opts = {}){
     ['FOUND BY', f ? head(c.found_ign) + finder(c) : null, 'ggggggg'],
     ['HOW IT WAS HIDDEN', (c.blind ? 'BLIND RUN' : 'BY HAND') + (c.server ? ' · ' + esc(c.server.toUpperCase()) : ''), ''],
     ['WORTH', '1 QLL <i class="sub">+ 0.1 TO THE FOUNDER</i>', ''],
-  ];
+  ].filter(x => tokenOn() || x[0] !== 'WORTH');
   const sheet = $('#coin-sheet'); sheet.className = 'sheet ' + (f ? 'found' : 'out') + (reveal ? ' reveal' : '');
   sheet.innerHTML = `
     <div class="ch"><div class="bkwrap">${reveal ? '<img class="grey" src="book-grey.svg" alt=""><img class="gold" src="book-gold.svg" alt="">' : `<img src="${f ? 'book-gold.svg' : 'book-grey.svg'}" alt="">`}</div>
-      <div><h3>${reveal ? 'YOU FOUND IT.' : roundName(r) + ' · COIN ' + c.number}</h3><p class="${f ? 'ok' : ''}">${reveal ? roundName(r) + ' · COIN ' + c.number + ' IS YOURS. 1 QLL IS ON YOUR ACCOUNT.' : f ? head(c.found_ign) + 'FOUND BY ' + finder(c) : 'STILL OUT THERE'}</p></div>
+      <div><h3>${reveal ? 'YOU FOUND IT.' : roundName(r) + ' · COIN ' + c.number}</h3><p class="${f ? 'ok' : ''}">${reveal ? roundName(r) + ' · COIN ' + c.number + ' IS YOURS.' + (tokenOn() ? ' 1 QLL IS ON YOUR ACCOUNT.' : '') : f ? head(c.found_ign) + 'FOUND BY ' + finder(c) : 'STILL OUT THERE'}</p></div>
       <a class="x" id="coin-x" title="close">✕</a></div>
     ${r === 0 ? '<p class="note">TEST ROUND: THIS COIN IS WORTH NOTHING.</p>' : ''}
     <div class="cf">${fields.map(([k, v, p], i) => `<div><span>${k}</span><b data-f="${i}">${v === null || (reveal && p) ? `<i class="gl" data-p="${p}"></i>` : v}</b></div>`).join('')}</div>
-    ${reveal ? `<div class="cfull happened"><span>WHAT JUST HAPPENED</span><ul><li><b>1 QLL</b> IS ON YOUR ACCOUNT.</li><li><b>0.1 QLL</b> WENT TO THE FOUNDER. THAT IS THE WHOLE FEE.</li><li>${at ? 'THE CHEST THIS BOOK SAT IN IS NOW ON THE MAP.' : 'THIS BOOK CARRIED NO SEALED POSITION, SO THE MAP CANNOT SHOW ITS CHEST.'}</li><li>ALL OF IT IS WRITTEN IN <a href="ledger.html">THE LEDGER ↗</a>, FOR GOOD.</li></ul></div>` : ''}
+    ${reveal ? `<div class="cfull happened"><span>WHAT JUST HAPPENED</span><ul>${tokenOn() ? '<li><b>1 QLL</b> IS ON YOUR ACCOUNT.</li><li><b>0.1 QLL</b> WENT TO THE FOUNDER. THAT IS THE WHOLE FEE.</li>' : '<li><b>THE COIN</b> IS ON YOUR ACCOUNT, AND YOUR NAME IS ON ITS CARD.</li>'}<li>${at ? 'THE CHEST THIS BOOK SAT IN IS NOW ON THE MAP.' : 'THIS BOOK CARRIED NO SEALED POSITION, SO THE MAP CANNOT SHOW ITS CHEST.'}</li><li>ALL OF IT IS WRITTEN IN <a href="ledger.html">THE LEDGER ↗</a>, FOR GOOD.</li></ul></div>` : ''}
     ${f ? '' : '<p class="note">THE GLYPHS ARE WHAT NOBODY KNOWS YET. ONLY THE CODE INSIDE THE BOOK CAN UNLOCK THEM.</p>'}
     <div class="cfull"><span>ITS FINGERPRINT · PUBLISHED BEFORE THE HUNT · SHA256 OF THE CODE</span><b class="hash">${c.hash}</b></div>
     <div id="coin-map" class="${at ? '' : 'grey'}"></div>
@@ -289,7 +293,7 @@ function openCoin(r, n, opts = {}){
         : c.video_url ? `<div class="cfull"><span>THE HIDE, ON CAMERA</span><a href="${esc(c.video_url)}" target="_blank" rel="noopener" style="text-decoration:underline">WATCH THE HIDE ↗</a></div>`
         : c.video_hash ? `<div class="cfull"><span>THE HIDE, ON CAMERA · FINGERPRINT OF THE RECORDING${c.video_at ? ' · COMMITTED ' + day(c.video_at) : ''}</span><b class="hash">${c.video_hash}</b><p class="note" style="margin-top:8px">THE RECORDING IS BEING PUBLISHED. ITS FINGERPRINT IS ALREADY HERE, SO THE FILE CAN NEVER BE SWAPPED FOR ANOTHER.</p></div>`
         : `<div class="cfull"><span>THE HIDE, ON CAMERA</span><b style="font-weight:400;color:var(--dim)">${f ? 'NO RECORDING WAS PUBLISHED FOR THIS COIN' : 'NO RECORDING HAS BEEN COMMITTED FOR THIS COIN YET'}</b></div>`}
-    <div class="row">${reveal && token.claims !== 'soon' ? '<button id="coin-claim">CLAIM TO WALLET</button>' : ''}<button class="ghost" id="coin-open-map">${at ? 'OPEN IN THE MAP ↗' : 'OPEN THE MAP ↗'}</button></div>`;
+    <div class="row">${reveal && token.claims === 'open' ? '<button id="coin-claim">CLAIM TO WALLET</button>' : ''}<button class="ghost" id="coin-open-map">${at ? 'OPEN IN THE MAP ↗' : 'OPEN THE MAP ↗'}</button></div>`;
   $('#coin').hidden = false; $('#coin').scrollTop = 0;
   sheet.querySelectorAll('.gl').forEach((el, k) => {
     const t = glyphs(el, el.dataset.p), b = el.parentElement, i = +b.dataset.f;
@@ -321,13 +325,13 @@ const pfpOf = u => { const m = u.user_metadata || {}, p = String(m.avatar_url ||
 function renderAccount(a){
   const chip = $('#nav-account');
   if (!a) { chip.textContent = 'SIGN IN'; $('#account').hidden = true; return; }
-  chip.innerHTML = (a.pfp ? `<img src="${esc(a.pfp)}" alt="" referrerpolicy="no-referrer">` : '') + `<b>${a.total.toFixed(1)}</b> QLL`;
+  chip.innerHTML = (a.pfp ? `<img src="${esc(a.pfp)}" alt="" referrerpolicy="no-referrer">` : '') + `<b>${count(a.total)}</b> ${unit(a.total)}`;
   $('#acc-pfp').src = a.pfp || 'favicon.svg'; $('#acc-name').textContent = a.name.toUpperCase();
   $('#acc-ign').innerHTML = a.ign ? head(a.ign) + esc(a.ign.toUpperCase()) : 'NO MINECRAFT NAME YET';
-  $('#acc-total').textContent = a.total.toFixed(1);
-  $('#acc-split').textContent = 'ON THE SITE ' + a.bal.toFixed(1) + ' · IN YOUR WALLET ' + a.inWallet.toFixed(1) + ' · ' + a.books.length + (a.books.length === 1 ? ' BOOK' : ' BOOKS');
+  $('#acc-total').textContent = count(a.total); $('#acc-unit').textContent = unit(a.total);
+  $('#acc-split').textContent = (tokenOn() ? 'ON THE SITE ' + a.bal.toFixed(1) + ' · IN YOUR WALLET ' + a.inWallet.toFixed(1) + ' · ' : '') + a.books.length + (a.books.length === 1 ? ' BOOK' : ' BOOKS') + (tokenOn() ? '' : ' FOUND');
   $('#acc-books').innerHTML = a.books.map(e => `<div class="own" data-own="${e.coin_number}" data-round="${e.coin_round}"><img src="book-gold.svg" alt="">${roundName(e.coin_round)} · COIN ${e.coin_number} · ${day(e.at)}</div>`).join('') || '<div>NO BOOKS YET. GO FIND ONE.</div>';
-  $('#acc-claim').disabled = !(a.bal > 0) || token.claims === 'soon';
+  $('#acc-claim').disabled = !(a.bal > 0) || token.claims !== 'open';
   $('#acc-wallet').hidden = !a.wallet; if (a.wallet) $('#acc-wallet').innerHTML = 'YOUR WALLET · <span class="addr">' + esc(short(a.wallet)) + '</span>';
 }
 $('#nav-account').onclick = e => { e.preventDefault(); if (!session) { $('#btn-discord').click(); return; } $('#account').hidden = !$('#account').hidden; };
@@ -363,7 +367,8 @@ async function showAuth(){
     const waiting = (cl || []).filter(c => c.status === 'pending'), onWay = waiting.reduce((t, c) => t + Number(c.amount), 0);
     const lastWallet = sent.length ? sent[0].wallet : '';
     mine.hidden = false;
-    mine.textContent = 'ON THE SITE: ' + bal.toFixed(1) + ' QLL' + (onWay ? ' · ON THEIR WAY TO YOUR WALLET: ' + onWay.toFixed(1) + ' QLL' : '') + (inWallet ? ' · IN YOUR WALLET: ' + inWallet.toFixed(1) + ' QLL' : '') + (rows.length ? ' · ' + rows.length + (rows.length === 1 ? ' BOOK' : ' BOOKS') : ' · NONE YET. GO FIND ONE.');
+    if (!tokenOn()) mine.textContent = rows.length ? 'YOURS: ' + count(bal) + ' ' + unit(bal) + ' · ' + rows.length + (rows.length === 1 ? ' BOOK' : ' BOOKS') : 'NO COINS YET. GO FIND ONE.';
+    else mine.textContent = 'ON THE SITE: ' + bal.toFixed(1) + ' QLL' + (onWay ? ' · ON THEIR WAY TO YOUR WALLET: ' + onWay.toFixed(1) + ' QLL' : '') + (inWallet ? ' · IN YOUR WALLET: ' + inWallet.toFixed(1) + ' QLL' : '') + (rows.length ? ' · ' + rows.length + (rows.length === 1 ? ' BOOK' : ' BOOKS') : ' · NONE YET. GO FIND ONE.');
     books.hidden = !rows.length;
     books.innerHTML = rows.map(e => `<div class="card found own" data-own="${e.coin_number}" data-round="${e.coin_round}"><img class="book" src="book-gold.svg" alt=""><b>R${e.coin_round} COIN ${e.coin_number}</b><span>REDEEMED ${day(e.at)}</span></div>`).join('');
     $('#claim').hidden = !(bal > 0 || sent.length || waiting.length);
@@ -371,7 +376,7 @@ async function showAuth(){
     if (lastWallet && !$('#wallet').value.trim() && !walletTouched) { $('#wallet').value = lastWallet; $('#wallet-note').hidden = false; }
     if (waiting.length) { $('#claim-msg').textContent = 'A TRANSFER OF ' + onWay.toFixed(1) + ' QLL IS BEING CONFIRMED BY THE NETWORK. THIS PAGE IS WATCHING IT.'; watchTransfer(); }
     else { if (settleTries) $('#claim-msg').textContent = ''; settleTries = 0; }
-    myBal = bal; $('#btn-claim').disabled = !(bal > 0) || token.claims === 'soon';
+    myBal = bal; $('#btn-claim').disabled = !(bal > 0) || token.claims !== 'open';
     renderAccount(Object.assign(me, { bal, inWallet, total: bal + inWallet + onWay, books: rows, wallet: lastWallet }));
     $('#claims').innerHTML = sent.map(c => `${Number(c.amount).toFixed(1)} QLL → <span class="addr">${esc(short(c.wallet))}</span> · ${day(c.at)} · <a href="https://explorer.solana.com/tx/${esc(c.tx)}${c.network === 'mainnet' ? '' : '?cluster=' + esc(c.network)}" target="_blank" rel="noopener">VIEW ↗</a>`).join('<br>');
   } catch (e) { mine.hidden = true; books.hidden = true; $('#claim').hidden = true; }
@@ -525,7 +530,9 @@ $('#btn-claim').onclick = async () => {
 };
 // the token and the founder wallet are public: link them, and offer the token address to wallets that show nothing on their own
 fetch(API + '/ledger').then(r => r.json()).then(j => {
-  token = { mint: addr(j.mint), network: ['mainnet', 'devnet', 'testnet'].includes(j.network) ? j.network : 'devnet', founder: addr(j.founder_wallet), claims: j.claims === 'open' && addr(j.mint) ? 'open' : 'soon' };
+  token = j.claims === 'off' || !j.ok ? { mint: null, network: 'mainnet', founder: null, claims: 'off' }
+    : { mint: addr(j.mint), network: ['mainnet', 'devnet', 'testnet'].includes(j.network) ? j.network : 'devnet', founder: addr(j.founder_wallet), claims: j.claims === 'open' && addr(j.mint) ? 'open' : 'soon' };
+  document.body.classList.toggle('notoken', !tokenOn());
   document.body.classList.toggle('claims-soon', token.claims !== 'open');
   document.body.classList.toggle('mainnet', token.network === 'mainnet');
   const q = token.network === 'mainnet' ? '' : '?cluster=' + encodeURIComponent(token.network);
